@@ -5,6 +5,7 @@
 *.apk
 *.ap_
 bin/
+out/
 gen/
 .gradle/
 .externalNativeBuild
