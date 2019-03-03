@@ -1,0 +1,21 @@
+package com.github.dimsuz.modelgenerator.processor.util
+
+import com.squareup.kotlinpoet.FileSpec
+import java.io.File
+import javax.annotation.processing.ProcessingEnvironment
+
+internal fun writeFile(
+  processingEnv: ProcessingEnvironment,
+  fileSpec: FileSpec
+): Either<String, Unit> {
+  val kaptKotlinGeneratedDir = processingEnv.options["kapt.kotlin.generated"]
+    ?: return Left("Can't find the target directory for generated Kotlin files.")
+  File(
+    "$kaptKotlinGeneratedDir/${fileSpec.packageName.replace(".", "/")}",
+    fileSpec.name
+  ).apply {
+    parentFile.mkdirs()
+    writeText(fileSpec.toString())
+  }
+  return Right(Unit)
+}

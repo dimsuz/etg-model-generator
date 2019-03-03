@@ -9,7 +9,6 @@ import com.github.dimsuz.modelgenerator.processor.util.join
 import com.github.dimsuz.modelgenerator.processor.util.map
 import io.reactivex.Observable
 import javax.annotation.processing.ProcessingEnvironment
-import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Name
 import javax.lang.model.element.TypeElement
@@ -18,7 +17,6 @@ import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 
 internal fun findReactiveProperties(
-  roundEnv: RoundEnvironment,
   processingEnv: ProcessingEnvironment,
   lceStateTypeInfo: LceStateTypeInfo,
   element: TypeElement
@@ -44,6 +42,7 @@ private fun ExecutableElement.toReactivePropertyOf(
 private fun extractGetter(element: ExecutableElement): ReactiveGetter {
   return ReactiveGetter(
     name = element.simpleName.toString(),
+    element = element,
     contentType = (element.returnType as DeclaredType).typeArguments.single()
   )
 }

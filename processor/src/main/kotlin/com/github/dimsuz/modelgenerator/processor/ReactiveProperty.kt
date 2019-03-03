@@ -1,5 +1,6 @@
 package com.github.dimsuz.modelgenerator.processor
 
+import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.VariableElement
 import javax.lang.model.type.TypeMirror
 
@@ -15,5 +16,6 @@ internal data class ReactiveRequest(
 
 internal data class ReactiveGetter(
   val name: String,
+  val element: ExecutableElement,
   val contentType: TypeMirror
 )
