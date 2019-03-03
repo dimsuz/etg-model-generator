@@ -15,5 +15,5 @@ internal data class ReactiveRequest(
 
 internal data class ReactiveGetter(
   val name: String,
-  val returnType: TypeMirror
+  val contentType: TypeMirror
 )

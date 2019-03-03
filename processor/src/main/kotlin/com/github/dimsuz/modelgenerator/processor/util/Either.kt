@@ -19,3 +19,13 @@ inline fun <L, R, T> Either<L, R>.map(f: (R) -> T): Either<L, T> =
 
 inline fun <L, R, T> Either<L, R>.mapLeft(f: (L) -> T): Either<T, R> =
   fold({ Left(f(it)) }, { this as Right })
+
+fun <L, R> List<Either<L, R>>.join(): Either<L, List<R>> {
+  if (isEmpty()) return Right(emptyList())
+  val initial = first().map { mutableListOf(it) }
+  return if (size == 1) initial else {
+    drop(1).fold(initial) { acc, either ->
+      acc.flatMap { list -> either.map { list.add(it); list } }
+    }
+  }
+}
