@@ -8,10 +8,11 @@ import com.github.dimsuz.modelgenerator.processor.util.Left
 import com.github.dimsuz.modelgenerator.processor.util.Right
 import com.github.dimsuz.modelgenerator.processor.util.firstOrFailure
 import com.github.dimsuz.modelgenerator.processor.util.flatMap
-import com.github.dimsuz.modelgenerator.processor.util.hasClass
+import com.github.dimsuz.modelgenerator.processor.util.isAssignable
 import com.github.dimsuz.modelgenerator.processor.util.isNotNull
 import com.github.dimsuz.modelgenerator.processor.util.map
 import com.github.dimsuz.modelgenerator.processor.util.mapLeft
+import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
@@ -24,7 +25,10 @@ internal data class LceStateTypeInfo(
   val loadingConstructor: ExecutableElement
 )
 
-internal fun buildLceStateInfo(roundEnv: RoundEnvironment): Either<String, LceStateTypeInfo> {
+internal fun buildLceStateInfo(
+  roundEnv: RoundEnvironment,
+  processingEnv: ProcessingEnvironment
+): Either<String, LceStateTypeInfo> {
   // TODO check count, should be only 1 of each annotation
   val contentElement = roundEnv.getElementsAnnotatedWith(LceContentConstructor::class.java)
     .firstOrFailure().mapLeft { "lce content constructor not found" }
@@ -38,7 +42,7 @@ internal fun buildLceStateInfo(roundEnv: RoundEnvironment): Either<String, LceSt
     .firstOrFailure().mapLeft { "lce error constructor not found" }
     .flatMap {
       when (it.kind) {
-        ElementKind.METHOD -> checkErrorConstructorUsable(it as ExecutableElement)
+        ElementKind.METHOD -> checkErrorConstructorUsable(it as ExecutableElement, processingEnv)
         else -> Left("lce error constructor must be a function")
       }
     }
@@ -69,7 +73,7 @@ private fun checkContentConstructorUsable(element: ExecutableElement): Either<St
 
 private fun checkLoadingConstructorUsable(element: ExecutableElement): Either<String, ExecutableElement> {
   return if (element.parameters.size > 1
-    || (element.parameters.size == 1 && element.parameters.single().isNotNull())
+    || (element.parameters.size == 1 && element.parameters.single().isNotNull)
   ) {
     Left("expected lce loading constructor to have no parameters or one nullable parameter")
   } else {
@@ -77,10 +81,17 @@ private fun checkLoadingConstructorUsable(element: ExecutableElement): Either<St
   }
 }
 
-private fun checkErrorConstructorUsable(element: ExecutableElement): Either<String, ExecutableElement> {
+private fun checkErrorConstructorUsable(
+  element: ExecutableElement,
+  processingEnv: ProcessingEnvironment
+): Either<String, ExecutableElement> {
   return if (element.parameters.size > 2
-    || (element.parameters.size >= 1 && !element.parameters.first().asType().hasClass(Throwable::class.java))
-    || (element.parameters.size == 2 && (element.parameters[1].isNotNull()))
+    || (element.parameters.size >= 1 && !processingEnv.typeUtils.isAssignable(
+      element.parameters.first().asType(),
+      Throwable::class.java,
+      processingEnv.elementUtils
+    ))
+    || (element.parameters.size == 2 && (element.parameters[1].isNotNull))
   ) {
     Left("expected lce error constructor to be of shape (Throwable, T?)")
   } else {
