@@ -8,8 +8,8 @@ import com.github.dimsuz.modelgenerator.processor.util.Left
 import com.github.dimsuz.modelgenerator.processor.util.Right
 import com.github.dimsuz.modelgenerator.processor.util.firstOrFailure
 import com.github.dimsuz.modelgenerator.processor.util.flatMap
-import com.github.dimsuz.modelgenerator.processor.util.isAssignable
 import com.github.dimsuz.modelgenerator.processor.util.isNotNull
+import com.github.dimsuz.modelgenerator.processor.util.isSameType
 import com.github.dimsuz.modelgenerator.processor.util.map
 import com.github.dimsuz.modelgenerator.processor.util.mapLeft
 import javax.annotation.processing.ProcessingEnvironment
@@ -86,7 +86,7 @@ private fun checkErrorConstructorUsable(
   processingEnv: ProcessingEnvironment
 ): Either<String, ExecutableElement> {
   return if (element.parameters.size > 2
-    || (element.parameters.size >= 1 && !processingEnv.typeUtils.isAssignable(
+    || (element.parameters.size >= 1 && !processingEnv.typeUtils.isSameType(
       element.parameters.first().asType(),
       Throwable::class.java,
       processingEnv.elementUtils
