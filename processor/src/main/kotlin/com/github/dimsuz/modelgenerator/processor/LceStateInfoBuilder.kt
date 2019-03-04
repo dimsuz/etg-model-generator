@@ -3,27 +3,20 @@ package com.github.dimsuz.modelgenerator.processor
 import com.github.dimsuz.modelgenerator.annotation.LceContentConstructor
 import com.github.dimsuz.modelgenerator.annotation.LceErrorConstructor
 import com.github.dimsuz.modelgenerator.annotation.LceLoadingConstructor
-import com.github.dimsuz.modelgenerator.processor.util.Either
-import com.github.dimsuz.modelgenerator.processor.util.Left
-import com.github.dimsuz.modelgenerator.processor.util.Right
+import com.github.dimsuz.modelgenerator.processor.entity.Either
+import com.github.dimsuz.modelgenerator.processor.entity.LceStateTypeInfo
+import com.github.dimsuz.modelgenerator.processor.entity.Left
+import com.github.dimsuz.modelgenerator.processor.entity.Right
+import com.github.dimsuz.modelgenerator.processor.entity.flatMap
+import com.github.dimsuz.modelgenerator.processor.entity.map
+import com.github.dimsuz.modelgenerator.processor.entity.mapLeft
 import com.github.dimsuz.modelgenerator.processor.util.firstOrFailure
-import com.github.dimsuz.modelgenerator.processor.util.flatMap
 import com.github.dimsuz.modelgenerator.processor.util.isNotNull
 import com.github.dimsuz.modelgenerator.processor.util.isSameType
-import com.github.dimsuz.modelgenerator.processor.util.map
-import com.github.dimsuz.modelgenerator.processor.util.mapLeft
 import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
-import javax.lang.model.type.TypeMirror
-
-internal data class LceStateTypeInfo(
-  val type: TypeMirror,
-  val contentConstructor: ExecutableElement,
-  val errorConstructor: ExecutableElement,
-  val loadingConstructor: ExecutableElement
-)
 
 internal fun buildLceStateInfo(
   roundEnv: RoundEnvironment,
@@ -60,7 +53,12 @@ internal fun buildLceStateInfo(
       errorElement.flatMap { errorConstructor ->
         loadingElement.map { loadingConstructor ->
           val lceType = contentConstructor.returnType
-          LceStateTypeInfo(lceType, contentConstructor, errorConstructor, loadingConstructor)
+          LceStateTypeInfo(
+            lceType,
+            contentConstructor,
+            errorConstructor,
+            loadingConstructor
+          )
         }
       }
     }

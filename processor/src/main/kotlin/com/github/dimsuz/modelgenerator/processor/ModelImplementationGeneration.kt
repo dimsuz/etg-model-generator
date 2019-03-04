@@ -1,6 +1,7 @@
 package com.github.dimsuz.modelgenerator.processor
 
-import com.github.dimsuz.modelgenerator.processor.util.Either
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
+import com.github.dimsuz.modelgenerator.processor.entity.Either
 import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
 import com.github.dimsuz.modelgenerator.processor.util.overridingWrapper
 import com.github.dimsuz.modelgenerator.processor.util.writeFile

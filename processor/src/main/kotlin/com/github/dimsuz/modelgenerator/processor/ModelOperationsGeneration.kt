@@ -1,7 +1,8 @@
 package com.github.dimsuz.modelgenerator.processor
 
 import com.github.dimsuz.modelgenerator.ModelOperations
-import com.github.dimsuz.modelgenerator.processor.util.Either
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
+import com.github.dimsuz.modelgenerator.processor.entity.Either
 import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
 import com.github.dimsuz.modelgenerator.processor.util.writeFile
 import com.squareup.kotlinpoet.FileSpec

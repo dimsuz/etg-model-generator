@@ -4,10 +4,11 @@ import com.github.dimsuz.modelgenerator.annotation.LceContentConstructor
 import com.github.dimsuz.modelgenerator.annotation.LceErrorConstructor
 import com.github.dimsuz.modelgenerator.annotation.LceLoadingConstructor
 import com.github.dimsuz.modelgenerator.annotation.ReactiveModel
+import com.github.dimsuz.modelgenerator.processor.entity.LceStateTypeInfo
 import com.github.dimsuz.modelgenerator.processor.util.error
-import com.github.dimsuz.modelgenerator.processor.util.flatMap
-import com.github.dimsuz.modelgenerator.processor.util.fold
-import com.github.dimsuz.modelgenerator.processor.util.map
+import com.github.dimsuz.modelgenerator.processor.entity.flatMap
+import com.github.dimsuz.modelgenerator.processor.entity.fold
+import com.github.dimsuz.modelgenerator.processor.entity.map
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.SourceVersion

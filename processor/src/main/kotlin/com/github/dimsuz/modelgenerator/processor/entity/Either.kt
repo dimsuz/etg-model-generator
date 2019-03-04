@@ -1,4 +1,4 @@
-package com.github.dimsuz.modelgenerator.processor.util
+package com.github.dimsuz.modelgenerator.processor.entity
 
 sealed class Either<out L, out R>
 

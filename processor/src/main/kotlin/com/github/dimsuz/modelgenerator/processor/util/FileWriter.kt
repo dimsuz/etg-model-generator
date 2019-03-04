@@ -1,5 +1,8 @@
 package com.github.dimsuz.modelgenerator.processor.util
 
+import com.github.dimsuz.modelgenerator.processor.entity.Either
+import com.github.dimsuz.modelgenerator.processor.entity.Left
+import com.github.dimsuz.modelgenerator.processor.entity.Right
 import com.squareup.kotlinpoet.FileSpec
 import java.io.File
 import javax.annotation.processing.ProcessingEnvironment

@@ -1,12 +1,16 @@
 package com.github.dimsuz.modelgenerator.processor
 
-import com.github.dimsuz.modelgenerator.processor.util.Either
-import com.github.dimsuz.modelgenerator.processor.util.Left
-import com.github.dimsuz.modelgenerator.processor.util.Right
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveGetter
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
+import com.github.dimsuz.modelgenerator.processor.entity.Either
+import com.github.dimsuz.modelgenerator.processor.entity.LceStateTypeInfo
+import com.github.dimsuz.modelgenerator.processor.entity.Left
+import com.github.dimsuz.modelgenerator.processor.entity.Right
 import com.github.dimsuz.modelgenerator.processor.util.enclosedMethods
 import com.github.dimsuz.modelgenerator.processor.util.isSameErasedType
-import com.github.dimsuz.modelgenerator.processor.util.join
-import com.github.dimsuz.modelgenerator.processor.util.map
+import com.github.dimsuz.modelgenerator.processor.entity.join
+import com.github.dimsuz.modelgenerator.processor.entity.map
 import io.reactivex.Observable
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.ExecutableElement
@@ -57,10 +61,12 @@ private fun extractRequest(
       "no request method found for reactive " +
         "getter '${getter.name}()'. Expected to find: '${getter.name.toRequestName()}()'"
     )
-  return Right(ReactiveRequest(
-    name = requestElement.simpleName.toString(),
-    parameters = requestElement.parameters
-  ))
+  return Right(
+    ReactiveRequest(
+      name = requestElement.simpleName.toString(),
+      parameters = requestElement.parameters
+    )
+  )
 }
 
 private fun Name.isRequestNameOf(getterName: String): Boolean {
