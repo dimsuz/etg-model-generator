@@ -5,10 +5,9 @@ import com.github.dimsuz.modelgenerator.annotation.LceErrorConstructor
 import com.github.dimsuz.modelgenerator.annotation.LceLoadingConstructor
 import com.github.dimsuz.modelgenerator.annotation.ReactiveModel
 import com.github.dimsuz.modelgenerator.processor.entity.LceStateTypeInfo
-import com.github.dimsuz.modelgenerator.processor.util.error
 import com.github.dimsuz.modelgenerator.processor.entity.flatMap
 import com.github.dimsuz.modelgenerator.processor.entity.fold
-import com.github.dimsuz.modelgenerator.processor.entity.map
+import com.github.dimsuz.modelgenerator.processor.util.error
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.SourceVersion
@@ -47,8 +46,10 @@ class ModelGeneratorProcessor : AbstractProcessor() {
 
       val reactiveProperties = findReactiveProperties(processingEnv, lceStateTypeInfo, element as TypeElement)
       reactiveProperties
-        .flatMap { props -> generateModelImplementation(processingEnv, element, props).map { props } }
-        .flatMap { props -> generateModelOperations(processingEnv, element, props) }
+        .flatMap { props ->
+          generateModelOperations(processingEnv, element, props)
+            .flatMap { operationsClass -> generateModelImplementation(processingEnv, element, props, operationsClass) }
+        }
         .fold({ processingEnv.messager.error(it) }, {})
     }
     return true

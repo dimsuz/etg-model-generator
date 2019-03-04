@@ -1,16 +1,16 @@
 package com.github.dimsuz.modelgenerator.processor
 
-import com.github.dimsuz.modelgenerator.processor.entity.ReactiveGetter
-import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
-import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
 import com.github.dimsuz.modelgenerator.processor.entity.Either
 import com.github.dimsuz.modelgenerator.processor.entity.LceStateTypeInfo
 import com.github.dimsuz.modelgenerator.processor.entity.Left
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveGetter
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
 import com.github.dimsuz.modelgenerator.processor.entity.Right
-import com.github.dimsuz.modelgenerator.processor.util.enclosedMethods
-import com.github.dimsuz.modelgenerator.processor.util.isSameErasedType
 import com.github.dimsuz.modelgenerator.processor.entity.join
 import com.github.dimsuz.modelgenerator.processor.entity.map
+import com.github.dimsuz.modelgenerator.processor.util.enclosedMethods
+import com.github.dimsuz.modelgenerator.processor.util.isSameErasedType
 import io.reactivex.Observable
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.ExecutableElement
@@ -64,6 +64,7 @@ private fun extractRequest(
   return Right(
     ReactiveRequest(
       name = requestElement.simpleName.toString(),
+      element = requestElement,
       parameters = requestElement.parameters
     )
   )

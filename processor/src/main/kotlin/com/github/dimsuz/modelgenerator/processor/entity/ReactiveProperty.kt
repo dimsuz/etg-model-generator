@@ -11,6 +11,7 @@ internal data class ReactiveProperty(
 
 internal data class ReactiveRequest(
   val name: String,
+  val element: ExecutableElement,
   val parameters: List<VariableElement>
 )
 
