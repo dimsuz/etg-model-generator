@@ -5,5 +5,6 @@ dependencies {
   implementation(project(":runtime"))
   implementation(deps.getValue("rxJava"))
   implementation(deps.getValue("kotlinpoet"))
+  implementation(kotlin("reflect"))
 }
 

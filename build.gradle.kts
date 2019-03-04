@@ -38,8 +38,8 @@ subprojects {
     plugin("kotlin")
   }
   dependencies {
-    compile(kotlin("stdlib-jdk8"))
-    testCompile("junit", "junit", "4.12")
+    implementation(kotlin("stdlib-jdk8"))
+    testImplementation("junit", "junit", "4.12")
   }
   tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"

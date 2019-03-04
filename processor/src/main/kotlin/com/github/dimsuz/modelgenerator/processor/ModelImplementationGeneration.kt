@@ -2,6 +2,7 @@ package com.github.dimsuz.modelgenerator.processor
 
 import com.github.dimsuz.modelgenerator.processor.util.Either
 import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
+import com.github.dimsuz.modelgenerator.processor.util.overridingWrapper
 import com.github.dimsuz.modelgenerator.processor.util.writeFile
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
@@ -24,7 +25,7 @@ internal fun generateModelImplementation(
       TypeSpec.classBuilder(className)
         .addSuperinterface(reactiveModelElement.asClassName())
         .addModifiers(KModifier.INTERNAL)
-        .addFunctions(reactiveProperties.map { FunSpec.overriding(it.getter.element).build() })
+        .addFunctions(reactiveProperties.map { FunSpec.overridingWrapper(it.getter.element).build() })
         .build()
     )
     .build()
