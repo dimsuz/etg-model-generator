@@ -15,6 +15,9 @@ interface SampleModel {
   fun getFriendsList() // no args
   fun getFriendsListState(): Observable<LceState<Unit>>
 
+  fun getFriendsListComplex(param: Map<List<Int>, List<MovieDetails>>) // complex params type
+  fun getFriendsListComplexState(): Observable<LceState<List<Set<String>>>> // complex content type
+
   fun testNonLceState(): Observable<String>
 
   fun testNonReactive(): String

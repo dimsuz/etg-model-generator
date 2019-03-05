@@ -4,6 +4,7 @@ import com.github.dimsuz.modelgenerator.processor.entity.Either
 import com.github.dimsuz.modelgenerator.processor.entity.LceStateTypeInfo
 import com.github.dimsuz.modelgenerator.processor.entity.Left
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveGetter
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveModelDescription
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
 import com.github.dimsuz.modelgenerator.processor.entity.Right
@@ -24,10 +25,18 @@ internal fun findReactiveProperties(
   processingEnv: ProcessingEnvironment,
   lceStateTypeInfo: LceStateTypeInfo,
   element: TypeElement
-): Either<String, List<ReactiveProperty>> {
-  val properties = element.enclosedMethods.filter { it.returnType.isReactiveLceType(processingEnv, lceStateTypeInfo) }
-    .map { it.toReactivePropertyOf(element) }
-  return properties.join()
+): Either<String, ReactiveModelDescription> {
+  val propertyEithers = mutableListOf<Either<String, ReactiveProperty>>()
+  for (m in element.enclosedMethods) {
+    if (m.returnType.isReactiveLceType(processingEnv, lceStateTypeInfo)) {
+      propertyEithers.add(m.toReactivePropertyOf(element))
+    }
+  }
+  return propertyEithers.join().map { properties ->
+    val nonReactiveMethods = element.enclosedMethods
+      .filter { m -> properties.none { it.getter.element == m || it.request.element == m } }
+    ReactiveModelDescription(element, properties, nonReactiveMethods)
+  }
 }
 
 private fun ExecutableElement.toReactivePropertyOf(
@@ -47,8 +56,13 @@ private fun extractGetter(element: ExecutableElement): ReactiveGetter {
   return ReactiveGetter(
     name = element.simpleName.toString(),
     element = element,
-    contentType = (element.returnType as DeclaredType).typeArguments.single()
+    // return type will be Observable<LceState<T>> reach into Observable then into LceState
+    contentType = element.returnType.firstTypeArgument().firstTypeArgument()
   )
+}
+
+private fun TypeMirror.firstTypeArgument(): TypeMirror {
+  return (this as DeclaredType).typeArguments.first()
 }
 
 private fun extractRequest(

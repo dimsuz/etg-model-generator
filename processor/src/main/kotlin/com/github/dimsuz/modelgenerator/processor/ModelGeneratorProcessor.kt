@@ -44,11 +44,11 @@ class ModelGeneratorProcessor : AbstractProcessor() {
           ?: return true
       }
 
-      val reactiveProperties = findReactiveProperties(processingEnv, lceStateTypeInfo, element as TypeElement)
-      reactiveProperties
-        .flatMap { props ->
-          generateModelOperations(processingEnv, element, props)
-            .flatMap { operationsClass -> generateModelImplementation(processingEnv, element, props, operationsClass) }
+      val modelDescription = findReactiveProperties(processingEnv, lceStateTypeInfo, element as TypeElement)
+      modelDescription
+        .flatMap { desc ->
+          generateModelOperations(processingEnv, desc)
+            .flatMap { operationsClass -> generateModelImplementation(processingEnv, desc, operationsClass) }
         }
         .fold({ processingEnv.messager.error(it) }, {})
     }
