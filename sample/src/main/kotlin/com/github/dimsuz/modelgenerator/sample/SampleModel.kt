@@ -21,6 +21,8 @@ interface SampleModel {
   fun testNonLceState(): Observable<String>
 
   fun testNonReactive(): String
+  fun testNonReactiveWithParams(userId: String, details: MovieDetails): String
+  fun testNonReactiveWithParamsVoid(details: MovieDetails)
 }
 
 data class Filter(val query: String)
