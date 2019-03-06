@@ -8,6 +8,7 @@ import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeName
+import com.squareup.kotlinpoet.WildcardTypeName
 import com.squareup.kotlinpoet.asTypeName
 import com.squareup.kotlinpoet.asTypeVariableName
 import javax.lang.model.element.ExecutableElement
@@ -23,14 +24,25 @@ import kotlin.reflect.jvm.internal.impl.name.FqName
 //
 // See https://github.com/square/kotlinpoet/issues/236 for details
 
-internal fun TypeName.javaToKotlinType(): TypeName {
+// in parameters using wildcard types parameter variance is redundant:
+// kotlin has interface Map<K, out V>, but having parameter with concrete type: Map<Int, out List<Int>>
+// is redundant
+internal fun TypeName.javaToKotlinType(omitVarianceModifiers: Boolean = false): TypeName {
   return if (this is ParameterizedTypeName) {
     (rawType.javaToKotlinType() as ClassName).parameterizedBy(
-      *typeArguments.map { it.javaToKotlinType() }.toTypedArray()
+      *typeArguments.map { it.javaToKotlinType(omitVarianceModifiers) }.toTypedArray()
     )
+  } else if (this is WildcardTypeName) {
+    if (this.inTypes.isNotEmpty()) {
+      if (omitVarianceModifiers) this.inTypes.single().javaToKotlinType(omitVarianceModifiers)
+      else WildcardTypeName.consumerOf(this.inTypes.single().javaToKotlinType())
+    } else {
+      if (omitVarianceModifiers) this.outTypes.single().javaToKotlinType(omitVarianceModifiers)
+      else WildcardTypeName.producerOf(this.outTypes.single().javaToKotlinType())
+    }
   } else {
     val className = JavaToKotlinClassMap.INSTANCE
-      .mapJavaToKotlin(FqName(toString()))?.asSingleFqName()?.asString()
+      .mapJavaToKotlin(FqName(this.toString()))?.asSingleFqName()?.asString()
     if (className == null) this
     else ClassName.bestGuess(className)
   }
@@ -40,7 +52,11 @@ internal fun ParameterSpec.Companion.getWrapper(element: VariableElement): Param
   return ParameterSpec
     .builder(
       element.simpleName.toString(),
-      element.asType().asTypeName().javaToKotlinType()
+      element.asType().asTypeName()
+        // in parameters using wildcard types parameter variance is redundant:
+        // kotlin has interface Map<K, out V>, but having parameter with concrete type: Map<Int, out List<Int>>
+        // is redundant
+        .javaToKotlinType(omitVarianceModifiers = true)
     )
     .jvmModifiers(element.modifiers).build()
 }
