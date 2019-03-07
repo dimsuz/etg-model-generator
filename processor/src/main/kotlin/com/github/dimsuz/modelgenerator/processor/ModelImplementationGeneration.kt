@@ -2,7 +2,9 @@ package com.github.dimsuz.modelgenerator.processor
 
 import com.github.dimsuz.modelgenerator.SchedulingSettings
 import com.github.dimsuz.modelgenerator.processor.entity.Either
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveGetter
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveModelDescription
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
 import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
 import com.github.dimsuz.modelgenerator.processor.util.overridingWrapper
 import com.github.dimsuz.modelgenerator.processor.util.primaryConstructor
@@ -63,6 +65,8 @@ internal fun generateModelImplementation(
           .initializer("%T()", stateClassName)
           .build())
         .addFunction(scheduleRequestFun)
+        .addFunctions(modelDescription.reactiveProperties.map { generateReactiveRequest(it.request) })
+        .addFunctions(modelDescription.reactiveProperties.map { generateReactiveGetter(it.getter) })
         .addFunctions(modelDescription.nonReactiveMethods.map { generateNonReactiveMethodImpl(it) })
         .addFunction(createCommandTemplateMethod(requestClassName, stateClassName, actionClassName))
         .addFunction(createReduceStateMethod(stateClassName, actionClassName))
@@ -110,6 +114,26 @@ private fun createRequestStreamProp(requestClassName: ClassName): PropertySpec {
     KModifier.PRIVATE
   )
     .initializer("PublishSubject.create<%T>()", requestClassName)
+    .build()
+}
+
+private fun generateReactiveGetter(getter: ReactiveGetter): FunSpec {
+  return FunSpec.overridingWrapper(getter.element)
+    .addCode(
+      CodeBlock.builder()
+        .addStatement("TODO()")
+        .build()
+    )
+    .build()
+}
+
+private fun generateReactiveRequest(request: ReactiveRequest): FunSpec {
+  return FunSpec.overridingWrapper(request.element)
+    .addCode(
+      CodeBlock.builder()
+        .addStatement("TODO()")
+        .build()
+    )
     .build()
 }
 
