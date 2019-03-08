@@ -1,9 +1,10 @@
 package com.github.dimsuz.modelgenerator.sample
 
-import com.github.dimsuz.modelgenerator.annotation.ReactiveModel
+import com.github.dimsuz.modelgenerator.annotation.GenerateReducingImplementation
+import com.github.dimsuz.modelgenerator.sample.modelimpl.SerialReactiveModel
 import io.reactivex.Observable
 
-@ReactiveModel
+@GenerateReducingImplementation(baseClass = SerialReactiveModel::class)
 interface SampleModel {
 
   fun fetchMovieDetails(movieId: String)

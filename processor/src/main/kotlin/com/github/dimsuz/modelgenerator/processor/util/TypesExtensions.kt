@@ -18,6 +18,13 @@ internal fun Types.isSameType(type: TypeMirror, c: Class<*>, elementUtils: Eleme
   )
 }
 
+internal fun Types.isSubtype(type: TypeMirror, c: Class<*>, elementUtils: Elements): Boolean {
+  return isSubtype(
+    type,
+    elementUtils.getTypeElement(c.canonicalName).asType()
+  )
+}
+
 internal fun Types.isSameErasedType(type: TypeMirror, c: Class<*>, elementUtils: Elements): Boolean {
   return isSameType(
     erasure(type),
