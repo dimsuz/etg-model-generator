@@ -44,12 +44,8 @@ abstract class SerialReactiveModel<StateType, RequestType, ActionType>(
     requestStream.onNext(request)
   }
 
-  override fun bindRequest(request: RequestType, state: StateType): Observable<ActionType> {
-    return createCommand(request, state)
-  }
-
   // TODO document that Observable can emit no result - that's ok, means no command needed for this request
-  abstract fun createCommand(request: RequestType, state: StateType): Observable<ActionType>
-
-  abstract override fun reduceState(previousState: StateType, action: ActionType): StateType
+  fun createCommand(request: RequestType, state: StateType): Observable<ActionType> {
+    return bindRequest(request, state)
+  }
 }
