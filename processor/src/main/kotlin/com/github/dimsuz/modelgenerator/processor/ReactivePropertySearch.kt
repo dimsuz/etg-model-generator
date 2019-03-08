@@ -24,7 +24,8 @@ import javax.lang.model.type.TypeMirror
 internal fun findReactiveProperties(
   processingEnv: ProcessingEnvironment,
   lceStateTypeInfo: LceStateTypeInfo,
-  element: TypeElement
+  element: TypeElement,
+  superTypeElement: TypeElement
 ): Either<String, ReactiveModelDescription> {
   val propertyEithers = mutableListOf<Either<String, ReactiveProperty>>()
   for (m in element.enclosedMethods) {
@@ -35,7 +36,7 @@ internal fun findReactiveProperties(
   return propertyEithers.join().map { properties ->
     val nonReactiveMethods = element.enclosedMethods
       .filter { m -> properties.none { it.getter.element == m || it.request.element == m } }
-    ReactiveModelDescription(element, properties, nonReactiveMethods)
+    ReactiveModelDescription(element, superTypeElement, properties, nonReactiveMethods)
   }
 }
 

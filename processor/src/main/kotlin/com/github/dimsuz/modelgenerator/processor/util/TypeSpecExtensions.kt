@@ -7,12 +7,14 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 
 internal fun TypeSpec.Builder.primaryConstructor(
-  vararg properties: PropertySpec,
+  properties: List<PropertySpec>,
+  parameters: List<ParameterSpec> = emptyList(),
   code: CodeBlock? = null
 ): TypeSpec.Builder {
   val propertySpecs = properties.map { p -> p.toBuilder().initializer(p.name).build() }
-  val parameters = propertySpecs.map { ParameterSpec.builder(it.name, it.type).build() }
+  val propertyParameters = propertySpecs.map { ParameterSpec.builder(it.name, it.type).build() }
   val constructor = FunSpec.constructorBuilder()
+    .addParameters(propertyParameters)
     .addParameters(parameters)
     .apply { code?.let { this.addCode(it) } }
     .build()

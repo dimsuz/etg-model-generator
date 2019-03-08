@@ -5,7 +5,9 @@ import com.github.dimsuz.modelgenerator.processor.entity.Either
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveGetter
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveModelDescription
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
+import com.github.dimsuz.modelgenerator.processor.util.constructors
 import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
+import com.github.dimsuz.modelgenerator.processor.util.getWrapper
 import com.github.dimsuz.modelgenerator.processor.util.overridingWrapper
 import com.github.dimsuz.modelgenerator.processor.util.primaryConstructor
 import com.github.dimsuz.modelgenerator.processor.util.writeFile
@@ -14,6 +16,7 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
@@ -36,49 +39,75 @@ internal fun generateModelImplementation(
   val actionClassName = className.nestedClass("Action")
   val requestStreamProp = createRequestStreamProp(requestClassName)
   val scheduleRequestFun = createScheduleRequestFun(requestClassName, requestStreamProp)
-  val constructorCode = createConstructorBody(requestStreamProp)
   val fileSpec = FileSpec
     .builder(modelElement.enclosingPackageName, "${className.simpleName}.kt")
     .addType(
       TypeSpec.classBuilder(className)
+        .superclass(
+          modelDescription.superTypeElement.asClassName()
+            .parameterizedBy(stateClassName, requestClassName, actionClassName)
+        )
+        .apply {
+          modelDescription.superTypeElement.constructors().single().parameters.forEach {
+            addSuperclassConstructorParameter(it.simpleName.toString())
+          }
+        }
         .primaryConstructor(
-          PropertySpec.builder(
-            OPERATIONS_PROPERTY_NAME,
-            operations
-          ).addModifiers(KModifier.PRIVATE).build(),
-          PropertySpec.builder(
-            SCHEDULING_PROPERTY_NAME,
-            SchedulingSettings::class
-          ).addModifiers(KModifier.PRIVATE).build(),
-          code = constructorCode
+          listOf(
+            PropertySpec.builder(
+              OPERATIONS_PROPERTY_NAME,
+              operations
+            ).addModifiers(KModifier.PRIVATE).build(),
+            PropertySpec.builder(
+              SCHEDULING_PROPERTY_NAME,
+              SchedulingSettings::class
+            ).addModifiers(KModifier.PRIVATE).build()
+          ),
+          parameters = modelDescription.superTypeElement.constructors().single()
+            .parameters.map { ParameterSpec.getWrapper(it) },
+          code = createConstructorBody(requestStreamProp)
         )
         .addSuperinterface(modelElement.asClassName())
         .addModifiers(KModifier.INTERNAL)
         .addProperty(requestStreamProp)
-        .addProperty(PropertySpec
-          .builder(STATE_CHANGES_PROPERTY_NAME, Observable::class.java.asClassName().parameterizedBy(stateClassName), KModifier.PRIVATE)
-          .build())
-        .addProperty(PropertySpec
-          .builder(LAST_STATE_PROPERTY_NAME, stateClassName, KModifier.PRIVATE)
-          .mutable(true)
-          .addAnnotation(Volatile::class)
-          .initializer("%T()", stateClassName)
-          .build())
+        .addProperty(
+          PropertySpec
+            .builder(
+              STATE_CHANGES_PROPERTY_NAME,
+              Observable::class.java.asClassName().parameterizedBy(stateClassName),
+              KModifier.PRIVATE
+            )
+            .build()
+        )
+        .addProperty(
+          PropertySpec
+            .builder(LAST_STATE_PROPERTY_NAME, stateClassName, KModifier.PRIVATE)
+            .mutable(true)
+            .addAnnotation(Volatile::class)
+            .initializer("%T()", stateClassName)
+            .build()
+        )
         .addFunction(scheduleRequestFun)
         .addFunctions(modelDescription.reactiveProperties.map { generateReactiveRequest(it.request) })
         .addFunctions(modelDescription.reactiveProperties.map { generateReactiveGetter(it.getter) })
         .addFunctions(modelDescription.nonReactiveMethods.map { generateNonReactiveMethodImpl(it) })
         .addFunction(createCommandTemplateMethod(requestClassName, stateClassName, actionClassName))
         .addFunction(createReduceStateMethod(stateClassName, actionClassName))
-        .addType(TypeSpec.classBuilder(requestClassName)
-          .addModifiers(KModifier.PRIVATE)
-          .build())
-        .addType(TypeSpec.classBuilder(stateClassName)
-          .addModifiers(KModifier.PRIVATE)
-          .build())
-        .addType(TypeSpec.classBuilder(actionClassName)
-          .addModifiers(KModifier.PRIVATE)
-          .build())
+        .addType(
+          TypeSpec.classBuilder(requestClassName)
+            .addModifiers(KModifier.INTERNAL)
+            .build()
+        )
+        .addType(
+          TypeSpec.classBuilder(stateClassName)
+            .addModifiers(KModifier.INTERNAL)
+            .build()
+        )
+        .addType(
+          TypeSpec.classBuilder(actionClassName)
+            .addModifiers(KModifier.INTERNAL)
+            .build()
+        )
         .build()
     )
     .build()
@@ -168,7 +197,11 @@ private fun createRequestType(): TypeSpec {
     .build()
 }
 
-private fun createCommandTemplateMethod(requestClassName: ClassName, stateClassName: ClassName, actionClassName: ClassName): FunSpec {
+private fun createCommandTemplateMethod(
+  requestClassName: ClassName,
+  stateClassName: ClassName,
+  actionClassName: ClassName
+): FunSpec {
   return FunSpec.builder(CREATE_COMMAND_FUN_NAME)
     .addModifiers(KModifier.PRIVATE)
     .addParameter("request", requestClassName)

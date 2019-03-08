@@ -4,27 +4,29 @@ import com.github.dimsuz.modelgenerator.model.ReactiveModel
 import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
 
+interface AppSchedulers
+
 /**
  * Реактивная модель, которая запускает последовательность команд в режиме serial execution, то есть
  * одна за другой - по мере поступления (FIFO)
  */
 abstract class SerialReactiveModel<StateType, RequestType, ActionType>(
-  initialState: StateType
+  schedulers: AppSchedulers,
+  logger: () -> String
 ): ReactiveModel<StateType, RequestType, ActionType> {
 
   protected val stateChanges: Observable<StateType>
   private val requestStream = PublishSubject.create<RequestType>()
   // TODO document why it is private and shouldn't leak
   @Volatile
-  private var lastState: StateType = initialState
+  private var lastState: StateType? = null
 
   init {
     stateChanges = requestStream
       .concatMap { request ->
-        createCommand(request, lastState)
-          .map { r ->
-            reduceState(lastState, r)
-          }
+        val state = lastState ?: createInitialState()
+        createCommand(request, state)
+          .map { r -> reduceState(state, r) }
           .doOnNext { lastState = it }
       }
       .share()

@@ -5,6 +5,7 @@ import javax.lang.model.element.TypeElement
 
 internal data class ReactiveModelDescription(
   val modelElement: TypeElement,
+  val superTypeElement: TypeElement,
   val reactiveProperties: List<ReactiveProperty>,
   val nonReactiveMethods: List<ExecutableElement>
 )

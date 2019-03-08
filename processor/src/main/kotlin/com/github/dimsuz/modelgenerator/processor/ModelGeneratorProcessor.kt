@@ -19,6 +19,7 @@ import javax.lang.model.SourceVersion
 import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
+import javax.lang.model.type.DeclaredType
 import javax.lang.model.type.MirroredTypeException
 
 class ModelGeneratorProcessor : AbstractProcessor() {
@@ -44,10 +45,6 @@ class ModelGeneratorProcessor : AbstractProcessor() {
         processingEnv.messager.error("${GenerateReducingImplementation::class.java.simpleName} can only be applied to interfaces")
         return true
       }
-      checkImplementsModelInterface(element).fold(
-        { processingEnv.messager.error(it); null },
-        { Unit }
-      ) ?: return true
 
       if (lceStateTypeInfo == null) {
         lceStateTypeInfo = buildLceStateInfo(roundEnv, processingEnv)
@@ -55,18 +52,20 @@ class ModelGeneratorProcessor : AbstractProcessor() {
           ?: return true
       }
 
-      val modelDescription = findReactiveProperties(processingEnv, lceStateTypeInfo, element as TypeElement)
-      modelDescription
-        .flatMap { desc ->
-          generateModelOperations(processingEnv, desc)
-            .flatMap { operationsClass -> generateModelImplementation(processingEnv, desc, operationsClass) }
-        }
+      findModelSupertype(element).flatMap { supertype ->
+        val modelDesc = findReactiveProperties(processingEnv, lceStateTypeInfo, element as TypeElement, supertype)
+        modelDesc
+          .flatMap { desc ->
+            generateModelOperations(processingEnv, desc)
+              .flatMap { operationsClass -> generateModelImplementation(processingEnv, desc, operationsClass) }
+          }
+      }
         .fold({ processingEnv.messager.error(it) }, {})
     }
     return true
   }
 
-  private fun checkImplementsModelInterface(element: Element): Either<String, Unit> {
+  private fun findModelSupertype(element: Element): Either<String, TypeElement> {
     val baseClassType = try {
       element.getAnnotation(GenerateReducingImplementation::class.java).baseClass
       throw RuntimeException("expected ${MirroredTypeException::class.java.simpleName} to be thrown")
@@ -76,7 +75,7 @@ class ModelGeneratorProcessor : AbstractProcessor() {
     return if (!processingEnv.typeUtils.isAssignable(baseClassType, ReactiveModel::class.java, processingEnv.elementUtils)) {
       Left("baseClass must implement ${ReactiveModel::class.java.simpleName} interface. Found: $baseClassType!")
     } else {
-      Right(Unit)
+      Right((baseClassType as DeclaredType).asElement() as TypeElement)
     }
   }
 
