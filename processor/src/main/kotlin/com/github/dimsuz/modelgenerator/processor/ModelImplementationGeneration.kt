@@ -43,6 +43,9 @@ internal fun generateModelImplementation(
   val stateClassName = className.nestedClass("State")
   val requestClassName = className.nestedClass("Request")
   val actionClassName = className.nestedClass("Action")
+  val reactiveGetters = modelDescription.reactiveProperties.map { it.getter }
+  val reactiveRequests = modelDescription.reactiveProperties.map { it.request }
+  val constructorParameters = modelDescription.superTypeElement.constructors().single().parameters
   val fileSpec = FileSpec
     .builder(modelElement.enclosingPackageName, "${className.simpleName}.kt")
     .addType(
@@ -52,7 +55,7 @@ internal fun generateModelImplementation(
             .parameterizedBy(stateClassName, requestClassName, actionClassName)
         )
         .apply {
-          modelDescription.superTypeElement.constructors().single().parameters.forEach {
+          constructorParameters.forEach {
             addSuperclassConstructorParameter(it.simpleName.toString())
           }
         }
@@ -63,29 +66,28 @@ internal fun generateModelImplementation(
               operations
             ).addModifiers(KModifier.PRIVATE).build()
           ),
-          parameters = modelDescription.superTypeElement.constructors().single()
-            .parameters.map { ParameterSpec.getWrapper(it) }
+          parameters = constructorParameters.map { ParameterSpec.getWrapper(it) }
         )
         .addSuperinterface(modelElement.asClassName())
         .addModifiers(KModifier.INTERNAL)
-        .addFunctions(modelDescription.reactiveProperties.map { generateReactiveRequest(it.request, requestClassName) })
-        .addFunctions(modelDescription.reactiveProperties.map { generateReactiveGetter(it.getter) })
+        .addFunctions(reactiveRequests.map { generateReactiveRequest(it, requestClassName) })
+        .addFunctions(reactiveGetters.map { generateReactiveGetter(it) })
         .addFunctions(modelDescription.nonReactiveMethods.map { generateNonReactiveMethodImpl(it) })
         .addFunction(createBindRequestsMethod(requestClassName, stateClassName, actionClassName))
-        .addFunction(createReduceStateMethod(stateClassName, actionClassName, modelDescription.reactiveProperties.map { it.getter }))
+        .addFunction(createReduceStateMethod(stateClassName, actionClassName, reactiveGetters))
         .addFunction(createCreateInitialStateMethod(stateClassName))
-        .addType(createRequestType(requestClassName, modelDescription.reactiveProperties.map { it.request }))
+        .addType(createRequestType(requestClassName, reactiveRequests))
         .addType(
           createStateType(
             stateClassName,
-            modelDescription.reactiveProperties.map { it.getter },
+            reactiveGetters,
             lceStateTypeInfo
           )
         )
         .addType(
           createActionType(
             actionClassName,
-            modelDescription.reactiveProperties.map { it.getter },
+            reactiveGetters,
             lceStateTypeInfo
           )
         )
