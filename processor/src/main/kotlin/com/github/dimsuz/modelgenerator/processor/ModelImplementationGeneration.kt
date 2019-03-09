@@ -72,7 +72,7 @@ internal fun generateModelImplementation(
         .addFunctions(modelDescription.reactiveProperties.map { generateReactiveGetter(it.getter) })
         .addFunctions(modelDescription.nonReactiveMethods.map { generateNonReactiveMethodImpl(it) })
         .addFunction(createBindRequestsMethod(requestClassName, stateClassName, actionClassName))
-        .addFunction(createReduceStateMethod(stateClassName, actionClassName))
+        .addFunction(createReduceStateMethod(stateClassName, actionClassName, modelDescription.reactiveProperties.map { it.getter }))
         .addFunction(createCreateInitialStateMethod(stateClassName))
         .addType(createRequestType(requestClassName, modelDescription.reactiveProperties.map { it.request }))
         .addType(
@@ -103,7 +103,7 @@ private fun createActionType(
   return TypeSpec.classBuilder(actionClassName)
     .addModifiers(KModifier.INTERNAL, KModifier.SEALED)
     .addTypes(getters.map { getter ->
-      TypeSpec.classBuilder("Update${getter.name.capitalize()}Action")
+      TypeSpec.classBuilder(actionElementTypeName(getter))
         .superclass(actionClassName)
         .addModifiers(KModifier.DATA)
         .primaryConstructor(listOf(PropertySpec.builder("state", lceStateTypeInfo.parameterizedBy(getter)).build()))
@@ -233,18 +233,30 @@ private fun createBindRequestsMethod(
 
 private fun createReduceStateMethod(
   stateClassName: ClassName,
-  actionClassName: ClassName
+  actionClassName: ClassName,
+  getters: List<ReactiveGetter>
 ): FunSpec {
   val method = ReactiveModel<*, *, *>::reduceState
   // no way to auto-override parameterized method of non-DeclaredType, have to rely on "expected"
   // shape of this method.
   // TODO check that this method is of expected shape and give a pretty error instead of generating erroneous code?
+  val previousStateParamName = method.valueParameters[0].name!!
+  val actionParamName = method.valueParameters[1].name!!
   return FunSpec
     .builder(method.name)
     .addModifiers(KModifier.OVERRIDE)
-    .addParameter(ParameterSpec.builder(method.valueParameters[0].name!!, stateClassName).build())
-    .addParameter(ParameterSpec.builder(method.valueParameters[1].name!!, actionClassName).build())
-    .addStatement("TODO()")
+    .addParameter(ParameterSpec.builder(previousStateParamName, stateClassName).build())
+    .addParameter(ParameterSpec.builder(actionParamName, actionClassName).build())
+    .beginControlFlow("return when ($actionParamName)")
+    .apply {
+      getters.forEach {
+        addStatement(
+          "is %T -> $previousStateParamName.copy(${it.name} = $actionParamName.state)",
+          actionClassName.nestedClass(actionElementTypeName(it))
+        )
+      }
+    }
+    .endControlFlow()
     .returns(stateClassName)
     .build()
 }
@@ -269,7 +281,13 @@ private fun LceStateTypeInfo.parameterizedBy(getter: ReactiveGetter): Parameteri
     .parameterizedBy(getter.contentType.asTypeName().javaToKotlinType(omitVarianceModifiers = true))
 }
 
-private fun requestElementTypeName(request: ReactiveRequest) =
-  request.name.capitalize() + "Request"
+private fun requestElementTypeName(request: ReactiveRequest): String {
+  return request.name.capitalize() + "Request"
+}
+
+private fun actionElementTypeName(getter: ReactiveGetter): String {
+  return "Update${getter.name.capitalize()}Action"
+}
+
 
 private const val OPERATIONS_PROPERTY_NAME = "operations"
