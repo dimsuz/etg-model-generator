@@ -68,7 +68,7 @@ internal fun generateModelImplementation(
         )
         .addSuperinterface(modelElement.asClassName())
         .addModifiers(KModifier.INTERNAL)
-        .addFunctions(modelDescription.reactiveProperties.map { generateReactiveRequest(it.request) })
+        .addFunctions(modelDescription.reactiveProperties.map { generateReactiveRequest(it.request, requestClassName) })
         .addFunctions(modelDescription.reactiveProperties.map { generateReactiveGetter(it.getter) })
         .addFunctions(modelDescription.nonReactiveMethods.map { generateNonReactiveMethodImpl(it) })
         .addFunction(createBindRequestsMethod(requestClassName, stateClassName, actionClassName))
@@ -149,11 +149,11 @@ private fun createRequestType(requestClassName: ClassName, requests: List<Reacti
     .addModifiers(KModifier.INTERNAL, KModifier.SEALED)
     .addTypes(requests.map { request ->
       if (request.element.parameters.isEmpty()) {
-        TypeSpec.objectBuilder(request.name.capitalize() + "Request")
+        TypeSpec.objectBuilder(requestElementTypeName(request))
           .superclass(requestClassName)
           .build()
       } else {
-        TypeSpec.classBuilder(request.name.capitalize() + "Request")
+        TypeSpec.classBuilder(requestElementTypeName(request))
           .superclass(requestClassName)
           .primaryConstructor(request.element.parameters.map {
             PropertySpec.builder(
@@ -168,20 +168,33 @@ private fun createRequestType(requestClassName: ClassName, requests: List<Reacti
 }
 
 private fun generateReactiveGetter(getter: ReactiveGetter): FunSpec {
+  val stateChangesPropertyName = ReactiveModel<*, *, *>::stateChanges.name
   return FunSpec.overridingWrapper(getter.element)
     .addCode(
       CodeBlock.builder()
-        .addStatement("TODO()")
+        .addStatement("""
+          |return $stateChangesPropertyName
+          |    .filter { it.${getter.name} != null }
+          |    .map { it.${getter.name}!! }
+          |    .distinctUntilChanged()
+        """.trimMargin())
         .build()
     )
     .build()
 }
 
-private fun generateReactiveRequest(request: ReactiveRequest): FunSpec {
+private fun generateReactiveRequest(request: ReactiveRequest, requestClassName: ClassName): FunSpec {
+  val scheduleRequestFunName = ReactiveModel<*, *, *>::scheduleRequest.name
+  val args = request.parameters.takeIf { it.isNotEmpty() }?.joinToString(
+    separator = ", ",
+    prefix = "(",
+    postfix = ")",
+    transform = { it.simpleName.toString() })
+    ?: ""
   return FunSpec.overridingWrapper(request.element)
     .addCode(
       CodeBlock.builder()
-        .addStatement("TODO()")
+        .addStatement("$scheduleRequestFunName(%T$args)",requestClassName.nestedClass(requestElementTypeName(request)))
         .build()
     )
     .build()
@@ -246,7 +259,7 @@ private fun createCreateInitialStateMethod(
   return FunSpec
     .builder(method.name)
     .addModifiers(KModifier.OVERRIDE)
-    .addStatement("TODO()")
+    .addStatement("return %T()", stateClassName)
     .returns(stateClassName)
     .build()
 }
@@ -255,5 +268,8 @@ private fun LceStateTypeInfo.parameterizedBy(getter: ReactiveGetter): Parameteri
   return this.type.asClassName()
     .parameterizedBy(getter.contentType.asTypeName().javaToKotlinType(omitVarianceModifiers = true))
 }
+
+private fun requestElementTypeName(request: ReactiveRequest) =
+  request.name.capitalize() + "Request"
 
 private const val OPERATIONS_PROPERTY_NAME = "operations"

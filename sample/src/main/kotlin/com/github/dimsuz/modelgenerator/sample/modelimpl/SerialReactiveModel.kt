@@ -15,14 +15,14 @@ abstract class SerialReactiveModel<StateType, RequestType, ActionType>(
   logger: () -> String
 ): ReactiveModel<StateType, RequestType, ActionType> {
 
-  protected val stateChanges: Observable<StateType>
+  private val _stateChanges: Observable<StateType>
   private val requestStream = PublishSubject.create<RequestType>()
   // TODO document why it is private and shouldn't leak
   @Volatile
   private var lastState: StateType? = null
 
   init {
-    stateChanges = requestStream
+    _stateChanges = requestStream
       .concatMap { request ->
         val state = lastState ?: createInitialState()
         createCommand(request, state)
@@ -32,13 +32,16 @@ abstract class SerialReactiveModel<StateType, RequestType, ActionType>(
       .share()
 
     @Suppress("CheckResult") // нет необходимости вызывать dispose здесь
-    stateChanges
+    _stateChanges
       .subscribe(
         {
           //Timber.d("state updated to: $it")
         },
         {})
   }
+
+  final override val stateChanges: Observable<StateType>
+    get() = _stateChanges
 
   override fun scheduleRequest(request: RequestType) {
     requestStream.onNext(request)

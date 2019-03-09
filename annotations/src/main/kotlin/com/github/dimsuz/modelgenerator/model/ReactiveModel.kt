@@ -7,4 +7,6 @@ interface ReactiveModel<S, R, A> {
   fun bindRequest(request: R, state: S): Observable<A>
   fun reduceState(previousState: S, action: A): S
   fun createInitialState(): S
+
+  val stateChanges: Observable<S>
 }
