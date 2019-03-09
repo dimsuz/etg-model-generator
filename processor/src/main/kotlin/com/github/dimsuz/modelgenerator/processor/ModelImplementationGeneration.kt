@@ -2,12 +2,15 @@ package com.github.dimsuz.modelgenerator.processor
 
 import com.github.dimsuz.modelgenerator.model.ReactiveModel
 import com.github.dimsuz.modelgenerator.processor.entity.Either
+import com.github.dimsuz.modelgenerator.processor.entity.LceStateTypeInfo
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveGetter
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveModelDescription
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
+import com.github.dimsuz.modelgenerator.processor.util.asClassName
 import com.github.dimsuz.modelgenerator.processor.util.constructors
 import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
 import com.github.dimsuz.modelgenerator.processor.util.getWrapper
+import com.github.dimsuz.modelgenerator.processor.util.javaToKotlinType
 import com.github.dimsuz.modelgenerator.processor.util.overridingWrapper
 import com.github.dimsuz.modelgenerator.processor.util.primaryConstructor
 import com.github.dimsuz.modelgenerator.processor.util.writeFile
@@ -17,10 +20,12 @@ import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.asTypeName
 import io.reactivex.Observable
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.ExecutableElement
@@ -29,6 +34,7 @@ import kotlin.reflect.full.valueParameters
 internal fun generateModelImplementation(
   processingEnv: ProcessingEnvironment,
   modelDescription: ReactiveModelDescription,
+  lceStateTypeInfo: LceStateTypeInfo,
   operations: ClassName
 ): Either<String, Unit> {
   val modelElement = modelDescription.modelElement
@@ -68,25 +74,97 @@ internal fun generateModelImplementation(
         .addFunction(createBindRequestsMethod(requestClassName, stateClassName, actionClassName))
         .addFunction(createReduceStateMethod(stateClassName, actionClassName))
         .addFunction(createCreateInitialStateMethod(stateClassName))
+        .addType(createRequestType(requestClassName, modelDescription.reactiveProperties.map { it.request }))
         .addType(
-          TypeSpec.classBuilder(requestClassName)
-            .addModifiers(KModifier.INTERNAL)
-            .build()
+          createStateType(
+            stateClassName,
+            modelDescription.reactiveProperties.map { it.getter },
+            lceStateTypeInfo
+          )
         )
         .addType(
-          TypeSpec.classBuilder(stateClassName)
-            .addModifiers(KModifier.INTERNAL)
-            .build()
-        )
-        .addType(
-          TypeSpec.classBuilder(actionClassName)
-            .addModifiers(KModifier.INTERNAL)
-            .build()
+          createActionType(
+            actionClassName,
+            modelDescription.reactiveProperties.map { it.getter },
+            lceStateTypeInfo
+          )
         )
         .build()
     )
     .build()
   return writeFile(processingEnv, fileSpec)
+}
+
+private fun createActionType(
+  actionClassName: ClassName,
+  getters: List<ReactiveGetter>,
+  lceStateTypeInfo: LceStateTypeInfo
+): TypeSpec {
+  return TypeSpec.classBuilder(actionClassName)
+    .addModifiers(KModifier.INTERNAL, KModifier.SEALED)
+    .addTypes(getters.map { getter ->
+      TypeSpec.classBuilder("Update${getter.name.capitalize()}Action")
+        .superclass(actionClassName)
+        .addModifiers(KModifier.DATA)
+        .primaryConstructor(listOf(PropertySpec.builder("state", lceStateTypeInfo.parameterizedBy(getter)).build()))
+        .build()
+    })
+    .build()
+}
+
+private fun createStateType(
+  stateClassName: ClassName,
+  getters: List<ReactiveGetter>,
+  lceStateTypeInfo: LceStateTypeInfo
+): TypeSpec {
+  return TypeSpec.classBuilder(stateClassName)
+    .addModifiers(KModifier.DATA, KModifier.INTERNAL)
+    .primaryConstructor(FunSpec.constructorBuilder()
+      .addParameters(
+        getters.map { getter ->
+          ParameterSpec
+            .builder(
+              getter.name,
+              lceStateTypeInfo.parameterizedBy(getter).copy(nullable = true)
+            )
+            .defaultValue("null")
+            .build()
+        }
+      )
+      .build())
+    .addProperties(getters.map { getter ->
+      PropertySpec
+        .builder(
+          getter.name,
+          lceStateTypeInfo.parameterizedBy(getter).copy(nullable = true)
+        )
+        .initializer(getter.name)
+        .build()
+    })
+    .build()
+}
+
+private fun createRequestType(requestClassName: ClassName, requests: List<ReactiveRequest>): TypeSpec {
+  return TypeSpec.classBuilder(requestClassName)
+    .addModifiers(KModifier.INTERNAL, KModifier.SEALED)
+    .addTypes(requests.map { request ->
+      if (request.element.parameters.isEmpty()) {
+        TypeSpec.objectBuilder(request.name.capitalize() + "Request")
+          .superclass(requestClassName)
+          .build()
+      } else {
+        TypeSpec.classBuilder(request.name.capitalize() + "Request")
+          .superclass(requestClassName)
+          .primaryConstructor(request.element.parameters.map {
+            PropertySpec.builder(
+              it.simpleName.toString(),
+              it.asType().asTypeName().javaToKotlinType(omitVarianceModifiers = true)
+            ).build()
+          })
+          .build()
+      }
+    })
+    .build()
 }
 
 private fun generateReactiveGetter(getter: ReactiveGetter): FunSpec {
@@ -171,6 +249,11 @@ private fun createCreateInitialStateMethod(
     .addStatement("TODO()")
     .returns(stateClassName)
     .build()
+}
+
+private fun LceStateTypeInfo.parameterizedBy(getter: ReactiveGetter): ParameterizedTypeName {
+  return this.type.asClassName()
+    .parameterizedBy(getter.contentType.asTypeName().javaToKotlinType(omitVarianceModifiers = true))
 }
 
 private const val OPERATIONS_PROPERTY_NAME = "operations"

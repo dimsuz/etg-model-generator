@@ -57,7 +57,7 @@ class ModelGeneratorProcessor : AbstractProcessor() {
         modelDesc
           .flatMap { desc ->
             generateModelOperations(processingEnv, desc)
-              .flatMap { operationsClass -> generateModelImplementation(processingEnv, desc, operationsClass) }
+              .flatMap { operationsClass -> generateModelImplementation(processingEnv, desc, lceStateTypeInfo, operationsClass) }
           }
       }
         .fold({ processingEnv.messager.error(it) }, {})

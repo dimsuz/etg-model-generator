@@ -19,6 +19,9 @@ interface SampleModel {
   fun getFriendsListComplex(param: Map<List<Int>, List<MovieDetails>>) // complex params type
   fun getFriendsListComplexState(): Observable<LceState<List<Set<String>>>> // complex content type
 
+  fun findChatMessages()
+  fun findChatMessagesState(): Observable<LceState<Map<String, List<Set<String>>>>> // complex content type with map
+
   fun testNonLceState(): Observable<String>
 
   fun testNonReactive(): String
