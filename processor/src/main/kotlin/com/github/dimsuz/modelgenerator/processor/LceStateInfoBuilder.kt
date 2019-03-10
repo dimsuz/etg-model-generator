@@ -10,13 +10,16 @@ import com.github.dimsuz.modelgenerator.processor.entity.Right
 import com.github.dimsuz.modelgenerator.processor.entity.flatMap
 import com.github.dimsuz.modelgenerator.processor.entity.map
 import com.github.dimsuz.modelgenerator.processor.entity.mapLeft
+import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
 import com.github.dimsuz.modelgenerator.processor.util.firstOrFailure
 import com.github.dimsuz.modelgenerator.processor.util.isNotNull
 import com.github.dimsuz.modelgenerator.processor.util.isSameType
+import com.squareup.kotlinpoet.MemberName
 import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
+import javax.lang.model.element.Modifier
 
 internal fun buildLceStateInfo(
   roundEnv: RoundEnvironment,
@@ -55,9 +58,9 @@ internal fun buildLceStateInfo(
           val lceType = contentConstructor.returnType
           LceStateTypeInfo(
             lceType,
-            contentConstructor,
-            errorConstructor,
-            loadingConstructor
+            MemberName(contentConstructor.enclosingPackageName, contentConstructor.simpleName.toString()),
+            MemberName(errorConstructor.enclosingPackageName, errorConstructor.simpleName.toString()),
+            MemberName(loadingConstructor.enclosingPackageName, loadingConstructor.simpleName.toString())
           )
         }
       }
@@ -65,11 +68,17 @@ internal fun buildLceStateInfo(
 }
 
 private fun checkContentConstructorUsable(element: ExecutableElement): Either<String, ExecutableElement> {
+  if (element.modifiers.none { it == Modifier.STATIC }) {
+    return Left("expected content constructor to be a top-level function")
+  }
   return if (element.parameters.size > 1)
     Left("expected exactly 1 parameter on lce content constructor") else Right(element)
 }
 
 private fun checkLoadingConstructorUsable(element: ExecutableElement): Either<String, ExecutableElement> {
+  if (element.modifiers.none { it == Modifier.STATIC }) {
+    return Left("expected loading constructor to be a top-level function")
+  }
   return if (element.parameters.size > 1
     || (element.parameters.size == 1 && element.parameters.single().isNotNull)
   ) {
@@ -83,6 +92,9 @@ private fun checkErrorConstructorUsable(
   element: ExecutableElement,
   processingEnv: ProcessingEnvironment
 ): Either<String, ExecutableElement> {
+  if (element.modifiers.none { it == Modifier.STATIC }) {
+    return Left("expected error constructor to be a top-level function")
+  }
   return if (element.parameters.size > 2
     || (element.parameters.size >= 1 && !processingEnv.typeUtils.isSameType(
       element.parameters.first().asType(),

@@ -5,10 +5,10 @@ import com.github.dimsuz.modelgenerator.processor.entity.Either
 import com.github.dimsuz.modelgenerator.processor.entity.LceStateTypeInfo
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveGetter
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveModelDescription
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
 import com.github.dimsuz.modelgenerator.processor.util.asClassName
 import com.github.dimsuz.modelgenerator.processor.util.constructors
-import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
 import com.github.dimsuz.modelgenerator.processor.util.getWrapper
 import com.github.dimsuz.modelgenerator.processor.util.javaToKotlinType
 import com.github.dimsuz.modelgenerator.processor.util.overridingWrapper
@@ -37,17 +37,15 @@ internal fun generateModelImplementation(
   lceStateTypeInfo: LceStateTypeInfo,
   operations: ClassName
 ): Either<String, Unit> {
-  val modelElement = modelDescription.modelElement
-  val modelName = modelElement.simpleName.toString()
-  val className = ClassName(modelElement.enclosingPackageName, modelName + "Impl")
-  val stateClassName = className.nestedClass("State")
-  val requestClassName = className.nestedClass("Request")
-  val actionClassName = className.nestedClass("Action")
   val reactiveGetters = modelDescription.reactiveProperties.map { it.getter }
   val reactiveRequests = modelDescription.reactiveProperties.map { it.request }
   val constructorParameters = modelDescription.superTypeElement.constructors().single().parameters
+  val className = modelDescription.className
+  val stateClassName = modelDescription.stateClassName
+  val requestClassName = modelDescription.requestClassName
+  val actionClassName = modelDescription.actionClassName
   val fileSpec = FileSpec
-    .builder(modelElement.enclosingPackageName, "${className.simpleName}.kt")
+    .builder(modelDescription.className.packageName, modelDescription.className.simpleName + ".kt")
     .addType(
       TypeSpec.classBuilder(className)
         .superclass(
@@ -68,12 +66,20 @@ internal fun generateModelImplementation(
           ),
           parameters = constructorParameters.map { ParameterSpec.getWrapper(it) }
         )
-        .addSuperinterface(modelElement.asClassName())
+        .addSuperinterface(modelDescription.modelElement.asClassName())
         .addModifiers(KModifier.INTERNAL)
         .addFunctions(reactiveRequests.map { generateReactiveRequest(it, requestClassName) })
         .addFunctions(reactiveGetters.map { generateReactiveGetter(it) })
         .addFunctions(modelDescription.nonReactiveMethods.map { generateNonReactiveMethodImpl(it) })
-        .addFunction(createBindRequestsMethod(requestClassName, stateClassName, actionClassName))
+        .addFunction(
+          createBindRequestsMethod(
+            requestClassName,
+            stateClassName,
+            actionClassName,
+            modelDescription.reactiveProperties,
+            lceStateTypeInfo
+          )
+        )
         .addFunction(createReduceStateMethod(stateClassName, actionClassName, reactiveGetters))
         .addFunction(createCreateInitialStateMethod(stateClassName))
         .addType(createRequestType(requestClassName, reactiveRequests))
@@ -174,12 +180,14 @@ private fun generateReactiveGetter(getter: ReactiveGetter): FunSpec {
   return FunSpec.overridingWrapper(getter.element)
     .addCode(
       CodeBlock.builder()
-        .addStatement("""
+        .addStatement(
+          """
           |return $stateChangesPropertyName
           |    .filter { it.${getter.name} != null }
           |    .map { it.${getter.name}!! }
           |    .distinctUntilChanged()
-        """.trimMargin())
+        """.trimMargin()
+        )
         .build()
     )
     .build()
@@ -196,7 +204,7 @@ private fun generateReactiveRequest(request: ReactiveRequest, requestClassName: 
   return FunSpec.overridingWrapper(request.element)
     .addCode(
       CodeBlock.builder()
-        .addStatement("$scheduleRequestFunName(%T$args)",requestClassName.nestedClass(requestElementTypeName(request)))
+        .addStatement("$scheduleRequestFunName(%T$args)", requestClassName.nestedClass(requestElementTypeName(request)))
         .build()
     )
     .build()
@@ -218,19 +226,83 @@ private fun generateNonReactiveMethodImpl(element: ExecutableElement): FunSpec {
 private fun createBindRequestsMethod(
   requestClassName: ClassName,
   stateClassName: ClassName,
-  actionClassName: ClassName
+  actionClassName: ClassName,
+  properties: List<ReactiveProperty>,
+  lceStateTypeInfo: LceStateTypeInfo
 ): FunSpec {
   // no way to auto-override parameterized method of non-DeclaredType, have to rely on "expected"
   // shape of this method.
   // TODO check that this method is of expected shape and give a pretty error instead of generating erroneous code?
   val method = ReactiveModel<*, *, *>::bindRequest
+  val requestParamName = method.valueParameters[0].name!!
+  val stateParamName = method.valueParameters[1].name!!
   return FunSpec.builder(method.name)
     .addModifiers(KModifier.OVERRIDE)
-    .addParameter(method.valueParameters[0].name!!, requestClassName)
-    .addParameter(method.valueParameters[1].name!!, stateClassName)
-    .addStatement("TODO()")
+    .addParameter(requestParamName, requestClassName)
+    .addParameter(stateParamName, stateClassName)
+    .beginControlFlow("return when ($requestParamName)")
+    .apply {
+      properties.forEach { property ->
+        addBindRequestWhenBranch(
+          property,
+          requestClassName,
+          actionClassName,
+          requestParamName,
+          stateParamName,
+          lceStateTypeInfo
+        )
+      }
+    }
+    .endControlFlow()
     .returns(Observable::class.java.asClassName().parameterizedBy(actionClassName))
     .build()
+}
+
+private fun FunSpec.Builder.addBindRequestWhenBranch(
+  property: ReactiveProperty,
+  requestClassName: ClassName,
+  actionClassName: ClassName,
+  requestParamName: String,
+  stateParamName: String,
+  lceStateTypeInfo: LceStateTypeInfo
+) {
+  val request = property.request
+  val requestElementClass = requestClassName.nestedClass(requestElementTypeName(request))
+  beginControlFlow("is %T ->", requestElementClass)
+  val args = request.parameters.map { it.simpleName.toString() }
+    .joinToString(", ", transform = { "$requestParamName.$it" })
+    .let { if (it.isEmpty()) stateParamName else "$it, $stateParamName" }
+  if (!property.getter.hasUnitContent) {
+    addStatement(
+      """
+    |$OPERATIONS_PROPERTY_NAME.${requestOperationFunName(request)}($args)
+    |    .map<%1T> { %2T(%3M(it)) }
+    |    .onErrorReturn { %2T(%4M(it)) }
+    |    .toObservable()
+    |    .startWith(%2T(%5M()))
+    """.trimMargin(),
+      actionClassName,
+      actionClassName.nestedClass(actionElementTypeName(property.getter)),
+      lceStateTypeInfo.contentConstructor,
+      lceStateTypeInfo.errorConstructor,
+      lceStateTypeInfo.loadingConstructor
+    )
+  } else {
+    addStatement(
+      """
+    |$OPERATIONS_PROPERTY_NAME.${requestOperationFunName(request)}($args)
+    |    .andThen(Observable.fromCallable<%1T> { %2T(%3M(Unit)) })
+    |    .onErrorReturn { %2T(%4M(it)) }
+    |    .startWith(%2T(%5M()))
+    """.trimMargin(),
+      actionClassName,
+      actionClassName.nestedClass(actionElementTypeName(property.getter)),
+      lceStateTypeInfo.contentConstructor,
+      lceStateTypeInfo.errorConstructor,
+      lceStateTypeInfo.loadingConstructor
+    )
+  }
+  endControlFlow()
 }
 
 private fun createReduceStateMethod(
@@ -290,6 +362,5 @@ private fun requestElementTypeName(request: ReactiveRequest): String {
 private fun actionElementTypeName(getter: ReactiveGetter): String {
   return "Update${getter.name.capitalize()}Action"
 }
-
 
 private const val OPERATIONS_PROPERTY_NAME = "operations"

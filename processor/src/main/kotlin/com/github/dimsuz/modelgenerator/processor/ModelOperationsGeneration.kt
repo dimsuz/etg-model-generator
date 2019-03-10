@@ -4,6 +4,7 @@ import com.github.dimsuz.modelgenerator.ModelOperations
 import com.github.dimsuz.modelgenerator.processor.entity.Either
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveModelDescription
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
+import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
 import com.github.dimsuz.modelgenerator.processor.entity.map
 import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
 import com.github.dimsuz.modelgenerator.processor.util.getWrapper
@@ -38,7 +39,9 @@ internal fun generateModelOperations(
           ModelOperations::class.asClassName().parameterizedBy(modelElement.asType().asTypeName())
         )
         .addModifiers(KModifier.INTERNAL)
-        .addFunctions(modelDescription.reactiveProperties.map { createRequestMethod(it) })
+        .addFunctions(modelDescription.reactiveProperties
+          .map { createRequestMethod(it, modelDescription.stateClassName) }
+        )
         .addFunctions(modelDescription.nonReactiveMethods.map { createNonReactiveMethod(it) })
         .build()
     )
@@ -46,15 +49,16 @@ internal fun generateModelOperations(
   return writeFile(processingEnv, fileSpec).map { ClassName(fileSpec.packageName, className) }
 }
 
-private fun createRequestMethod(property: ReactiveProperty): FunSpec {
-  val requestOperationName = "create${property.request.name.capitalize()}Operation"
-  val returnType = if (property.getter.contentType.asTypeName() == Unit::class.asTypeName()) {
+private fun createRequestMethod(property: ReactiveProperty, stateClassName: ClassName): FunSpec {
+  val requestOperationName = requestOperationFunName(property.request)
+  val returnType = if (property.getter.hasUnitContent) {
     Completable::class.asClassName()
   } else {
     Single::class.asClassName().parameterizedBy(property.getter.contentType.asTypeName().javaToKotlinType())
   }
   return FunSpec.builder(requestOperationName)
     .addParameters(property.request.parameters.map { ParameterSpec.getWrapper(it) })
+    .addParameter("state", stateClassName)
     .addModifiers(KModifier.ABSTRACT)
     .returns(returnType)
     .build()
@@ -66,4 +70,8 @@ private fun createNonReactiveMethod(executableElement: ExecutableElement): FunSp
     .addModifiers(KModifier.ABSTRACT)
     .returns(executableElement.returnType.asTypeName().javaToKotlinType())
     .build()
+}
+
+internal fun requestOperationFunName(request: ReactiveRequest): String {
+  return "create${request.name.capitalize()}Operation"
 }
