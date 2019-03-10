@@ -71,16 +71,8 @@ internal fun generateModelImplementation(
         .addFunctions(reactiveRequests.map { generateReactiveRequest(it, requestClassName) })
         .addFunctions(reactiveGetters.map { generateReactiveGetter(it) })
         .addFunctions(modelDescription.nonReactiveMethods.map { generateNonReactiveMethodImpl(it) })
-        .addFunction(
-          createBindRequestsMethod(
-            requestClassName,
-            stateClassName,
-            actionClassName,
-            modelDescription.reactiveProperties,
-            lceStateTypeInfo
-          )
-        )
-        .addFunction(createReduceStateMethod(stateClassName, actionClassName, reactiveGetters))
+        .addFunction(createBindRequestsMethod(modelDescription, lceStateTypeInfo))
+        .addFunction(createReduceStateMethod(modelDescription))
         .addFunction(createCreateInitialStateMethod(stateClassName))
         .addType(createRequestType(requestClassName, reactiveRequests))
         .addType(
@@ -224,10 +216,7 @@ private fun generateNonReactiveMethodImpl(element: ExecutableElement): FunSpec {
 }
 
 private fun createBindRequestsMethod(
-  requestClassName: ClassName,
-  stateClassName: ClassName,
-  actionClassName: ClassName,
-  properties: List<ReactiveProperty>,
+  modelDescription: ReactiveModelDescription,
   lceStateTypeInfo: LceStateTypeInfo
 ): FunSpec {
   // no way to auto-override parameterized method of non-DeclaredType, have to rely on "expected"
@@ -238,15 +227,15 @@ private fun createBindRequestsMethod(
   val stateParamName = method.valueParameters[1].name!!
   return FunSpec.builder(method.name)
     .addModifiers(KModifier.OVERRIDE)
-    .addParameter(requestParamName, requestClassName)
-    .addParameter(stateParamName, stateClassName)
+    .addParameter(requestParamName, modelDescription.requestClassName)
+    .addParameter(stateParamName, modelDescription.stateClassName)
     .beginControlFlow("return when ($requestParamName)")
     .apply {
-      properties.forEach { property ->
+      modelDescription.reactiveProperties.forEach { property ->
         addBindRequestWhenBranch(
           property,
-          requestClassName,
-          actionClassName,
+          modelDescription.requestClassName,
+          modelDescription.actionClassName,
           requestParamName,
           stateParamName,
           lceStateTypeInfo
@@ -254,7 +243,7 @@ private fun createBindRequestsMethod(
       }
     }
     .endControlFlow()
-    .returns(Observable::class.java.asClassName().parameterizedBy(actionClassName))
+    .returns(Observable::class.java.asClassName().parameterizedBy(modelDescription.actionClassName))
     .build()
 }
 
@@ -306,9 +295,7 @@ private fun FunSpec.Builder.addBindRequestWhenBranch(
 }
 
 private fun createReduceStateMethod(
-  stateClassName: ClassName,
-  actionClassName: ClassName,
-  getters: List<ReactiveGetter>
+  modelDescription: ReactiveModelDescription
 ): FunSpec {
   val method = ReactiveModel<*, *, *>::reduceState
   // no way to auto-override parameterized method of non-DeclaredType, have to rely on "expected"
@@ -319,19 +306,19 @@ private fun createReduceStateMethod(
   return FunSpec
     .builder(method.name)
     .addModifiers(KModifier.OVERRIDE)
-    .addParameter(ParameterSpec.builder(previousStateParamName, stateClassName).build())
-    .addParameter(ParameterSpec.builder(actionParamName, actionClassName).build())
+    .addParameter(ParameterSpec.builder(previousStateParamName, modelDescription.stateClassName).build())
+    .addParameter(ParameterSpec.builder(actionParamName, modelDescription.actionClassName).build())
     .beginControlFlow("return when ($actionParamName)")
     .apply {
-      getters.forEach {
+      modelDescription.reactiveProperties.map { it.getter }.forEach {
         addStatement(
           "is %T -> $previousStateParamName.copy(${it.name} = $actionParamName.state)",
-          actionClassName.nestedClass(actionElementTypeName(it))
+          modelDescription.actionClassName.nestedClass(actionElementTypeName(it))
         )
       }
     }
     .endControlFlow()
-    .returns(stateClassName)
+    .returns(modelDescription.stateClassName)
     .build()
 }
 
