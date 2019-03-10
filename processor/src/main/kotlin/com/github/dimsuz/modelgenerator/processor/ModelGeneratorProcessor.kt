@@ -58,6 +58,7 @@ class ModelGeneratorProcessor : AbstractProcessor() {
           .flatMap { desc ->
             generateModelOperations(processingEnv, desc)
               .flatMap { operationsClass -> generateModelImplementation(processingEnv, desc, lceStateTypeInfo, operationsClass) }
+              .flatMap { modelTypeSpec -> generateFactoryExtension(desc, modelTypeSpec, processingEnv) }
           }
       }
         .fold({ processingEnv.messager.error(it) }, {})

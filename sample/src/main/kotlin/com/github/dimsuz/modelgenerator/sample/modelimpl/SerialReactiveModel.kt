@@ -12,7 +12,7 @@ interface AppSchedulers
  */
 abstract class SerialReactiveModel<StateType, RequestType, ActionType>(
   schedulers: AppSchedulers,
-  logger: () -> String
+  logger: (String) -> Unit
 ): ReactiveModel<StateType, RequestType, ActionType> {
 
   private val _stateChanges: Observable<StateType>

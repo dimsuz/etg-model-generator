@@ -1,6 +1,8 @@
 package com.github.dimsuz.modelgenerator.sample
 
+import com.github.dimsuz.modelgenerator.ModelGenerator
 import com.github.dimsuz.modelgenerator.annotation.GenerateReducingImplementation
+import com.github.dimsuz.modelgenerator.sample.modelimpl.AppSchedulers
 import com.github.dimsuz.modelgenerator.sample.modelimpl.SerialReactiveModel
 import io.reactivex.Observable
 
@@ -34,5 +36,7 @@ data class Movie(val id: String)
 data class MovieDetails(val id: String, val genre: String)
 
 fun main() {
-  println("Hello, world!")
+  val schedulers = object : AppSchedulers { }
+  val model = ModelGenerator.createModel(SampleOperationsImpl { "userId" }, schedulers, { println(it) })
+  println("model is created: $model")
 }

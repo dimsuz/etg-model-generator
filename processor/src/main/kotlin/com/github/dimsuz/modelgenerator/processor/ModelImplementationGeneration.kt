@@ -7,6 +7,7 @@ import com.github.dimsuz.modelgenerator.processor.entity.ReactiveGetter
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveModelDescription
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
+import com.github.dimsuz.modelgenerator.processor.entity.map
 import com.github.dimsuz.modelgenerator.processor.util.asClassName
 import com.github.dimsuz.modelgenerator.processor.util.constructors
 import com.github.dimsuz.modelgenerator.processor.util.getWrapper
@@ -36,7 +37,7 @@ internal fun generateModelImplementation(
   modelDescription: ReactiveModelDescription,
   lceStateTypeInfo: LceStateTypeInfo,
   operations: ClassName
-): Either<String, Unit> {
+): Either<String, TypeSpec> {
   val reactiveGetters = modelDescription.reactiveProperties.map { it.getter }
   val reactiveRequests = modelDescription.reactiveProperties.map { it.request }
   val constructorParameters = modelDescription.superTypeElement.constructors().single().parameters
@@ -44,55 +45,55 @@ internal fun generateModelImplementation(
   val stateClassName = modelDescription.stateClassName
   val requestClassName = modelDescription.requestClassName
   val actionClassName = modelDescription.actionClassName
-  val fileSpec = FileSpec
-    .builder(modelDescription.className.packageName, modelDescription.className.simpleName + ".kt")
+  val modelTypeSpec = TypeSpec.classBuilder(className)
+    .superclass(
+      modelDescription.superTypeElement.asClassName()
+        .parameterizedBy(stateClassName, requestClassName, actionClassName)
+    )
+    .apply {
+      constructorParameters.forEach {
+        addSuperclassConstructorParameter(it.simpleName.toString())
+      }
+    }
+    .primaryConstructor(
+      listOf(
+        PropertySpec.builder(
+          OPERATIONS_PROPERTY_NAME,
+          operations
+        ).addModifiers(KModifier.PRIVATE).build()
+      ),
+      parameters = constructorParameters.map { ParameterSpec.getWrapper(it) }
+    )
+    .addSuperinterface(modelDescription.modelElement.asClassName())
+    .addModifiers(KModifier.INTERNAL)
+    .addFunctions(reactiveRequests.map { generateReactiveRequest(it, requestClassName) })
+    .addFunctions(reactiveGetters.map { generateReactiveGetter(it) })
+    .addFunctions(modelDescription.nonReactiveMethods.map { generateNonReactiveMethodImpl(it) })
+    .addFunction(createBindRequestsMethod(modelDescription, lceStateTypeInfo))
+    .addFunction(createReduceStateMethod(modelDescription))
+    .addFunction(createCreateInitialStateMethod(stateClassName))
+    .addType(createRequestType(requestClassName, reactiveRequests))
     .addType(
-      TypeSpec.classBuilder(className)
-        .superclass(
-          modelDescription.superTypeElement.asClassName()
-            .parameterizedBy(stateClassName, requestClassName, actionClassName)
-        )
-        .apply {
-          constructorParameters.forEach {
-            addSuperclassConstructorParameter(it.simpleName.toString())
-          }
-        }
-        .primaryConstructor(
-          listOf(
-            PropertySpec.builder(
-              OPERATIONS_PROPERTY_NAME,
-              operations
-            ).addModifiers(KModifier.PRIVATE).build()
-          ),
-          parameters = constructorParameters.map { ParameterSpec.getWrapper(it) }
-        )
-        .addSuperinterface(modelDescription.modelElement.asClassName())
-        .addModifiers(KModifier.INTERNAL)
-        .addFunctions(reactiveRequests.map { generateReactiveRequest(it, requestClassName) })
-        .addFunctions(reactiveGetters.map { generateReactiveGetter(it) })
-        .addFunctions(modelDescription.nonReactiveMethods.map { generateNonReactiveMethodImpl(it) })
-        .addFunction(createBindRequestsMethod(modelDescription, lceStateTypeInfo))
-        .addFunction(createReduceStateMethod(modelDescription))
-        .addFunction(createCreateInitialStateMethod(stateClassName))
-        .addType(createRequestType(requestClassName, reactiveRequests))
-        .addType(
-          createStateType(
-            stateClassName,
-            reactiveGetters,
-            lceStateTypeInfo
-          )
-        )
-        .addType(
-          createActionType(
-            actionClassName,
-            reactiveGetters,
-            lceStateTypeInfo
-          )
-        )
-        .build()
+      createStateType(
+        stateClassName,
+        reactiveGetters,
+        lceStateTypeInfo
+      )
+    )
+    .addType(
+      createActionType(
+        actionClassName,
+        reactiveGetters,
+        lceStateTypeInfo
+      )
     )
     .build()
-  return writeFile(processingEnv, fileSpec)
+
+  val fileSpec = FileSpec
+    .builder(modelDescription.className.packageName, modelDescription.className.simpleName + ".kt")
+    .addType(modelTypeSpec)
+    .build()
+  return writeFile(processingEnv, fileSpec).map { modelTypeSpec }
 }
 
 private fun createActionType(
