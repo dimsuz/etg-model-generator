@@ -22,7 +22,6 @@ plugins {
   kotlin("jvm") version "1.3.21"
 }
 
-
 allprojects {
   group = "com.github.dimsuz"
   version = "1.0-SNAPSHOT"
