@@ -1,4 +1,6 @@
+val deps: Map<String, String> by rootProject.extra
+
 dependencies {
-  api(project(":annotations"))
+  api(deps.getValue("rxJava"))
 }
 

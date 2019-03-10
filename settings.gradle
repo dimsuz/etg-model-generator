@@ -1,5 +1,4 @@
 rootProject.name = 'etg-model-generator'
-include 'annotations'
 include 'runtime'
 include 'processor'
 include 'sample'
