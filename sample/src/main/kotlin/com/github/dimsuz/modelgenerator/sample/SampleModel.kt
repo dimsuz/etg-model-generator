@@ -6,7 +6,10 @@ import com.github.dimsuz.modelgenerator.sample.modelimpl.AppSchedulers
 import com.github.dimsuz.modelgenerator.sample.modelimpl.SerialReactiveModel
 import io.reactivex.Observable
 
-@GenerateReducingImplementation(baseClass = SerialReactiveModel::class)
+@GenerateReducingImplementation(
+  baseClass = SerialReactiveModel::class,
+  lceState = LceState::class
+)
 interface SampleModel {
 
   fun fetchMovieDetails(movieId: String)
@@ -37,6 +40,10 @@ data class MovieDetails(val id: String, val genre: String)
 
 fun main() {
   val schedulers = object : AppSchedulers { }
-  val model = ModelGenerator.createModel(SampleOperationsImpl { "userId" }, schedulers, { println(it) })
+  val model = ModelGenerator.createModel(
+    SampleOperationsImpl { "userId" },
+    LceStateFactoryImpl(),
+    schedulers,
+    { println(it) })
   println("model is created: $model")
 }

@@ -12,6 +12,8 @@ import com.github.dimsuz.modelgenerator.processor.entity.join
 import com.github.dimsuz.modelgenerator.processor.entity.map
 import com.github.dimsuz.modelgenerator.processor.util.enclosedMethods
 import com.github.dimsuz.modelgenerator.processor.util.isSameErasedType
+import com.github.dimsuz.modelgenerator.processor.util.javaToKotlinType
+import com.squareup.kotlinpoet.asTypeName
 import io.reactivex.Observable
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.ExecutableElement
@@ -59,6 +61,7 @@ private fun extractGetter(element: ExecutableElement): ReactiveGetter {
     element = element,
     // return type will be Observable<LceState<T>> reach into Observable then into LceState
     contentType = element.returnType.firstTypeArgument().firstTypeArgument()
+      .asTypeName().javaToKotlinType(omitVarianceModifiers = true)
   )
 }
 
@@ -98,7 +101,7 @@ private fun TypeMirror.isReactiveLceType(
   return this.kind == TypeKind.DECLARED
     && processingEnv.typeUtils.isSameErasedType(this, Observable::class.java, processingEnv.elementUtils)
     && (this as DeclaredType).typeArguments.size == 1
-    && processingEnv.typeUtils.isSameErasedType(this.typeArguments.single(), lceStateTypeInfo.type)
+    && processingEnv.typeUtils.isSameErasedType(this.typeArguments.single(), lceStateTypeInfo.element.asType())
 }
 
 private const val GETTER_SUFFIX = "State"
