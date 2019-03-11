@@ -1,5 +1,6 @@
 package com.github.dimsuz.modelgenerator.processor
 
+import com.github.dimsuz.modelgenerator.lcestate.LceStateFactory
 import com.github.dimsuz.modelgenerator.model.ReactiveModel
 import com.github.dimsuz.modelgenerator.processor.entity.Either
 import com.github.dimsuz.modelgenerator.processor.entity.LceStateTypeInfo
@@ -8,7 +9,6 @@ import com.github.dimsuz.modelgenerator.processor.entity.ReactiveModelDescriptio
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveProperty
 import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
 import com.github.dimsuz.modelgenerator.processor.entity.map
-import com.github.dimsuz.modelgenerator.processor.util.asClassName
 import com.github.dimsuz.modelgenerator.processor.util.constructors
 import com.github.dimsuz.modelgenerator.processor.util.getWrapper
 import com.github.dimsuz.modelgenerator.processor.util.javaToKotlinType
@@ -21,9 +21,9 @@ import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
-import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.STAR
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
@@ -60,6 +60,10 @@ internal fun generateModelImplementation(
         PropertySpec.builder(
           OPERATIONS_PROPERTY_NAME,
           operations
+        ).addModifiers(KModifier.PRIVATE).build(),
+        PropertySpec.builder(
+          LCE_FACTORY_PROPERTY_NAME,
+          LceStateFactory::class.asClassName().parameterizedBy(lceStateTypeInfo.className.parameterizedBy(STAR))
         ).addModifiers(KModifier.PRIVATE).build()
       ),
       parameters = constructorParameters.map { ParameterSpec.getWrapper(it) }
@@ -107,7 +111,9 @@ private fun createActionType(
       TypeSpec.classBuilder(actionElementTypeName(getter))
         .superclass(actionClassName)
         .addModifiers(KModifier.DATA)
-        .primaryConstructor(listOf(PropertySpec.builder("state", lceStateTypeInfo.parameterizedBy(getter)).build()))
+        .primaryConstructor(listOf(
+          PropertySpec.builder("state", lceStateTypeInfo.className.parameterizedBy(getter.contentType)).build()
+        ))
         .build()
     })
     .build()
@@ -126,7 +132,7 @@ private fun createStateType(
           ParameterSpec
             .builder(
               getter.name,
-              lceStateTypeInfo.parameterizedBy(getter).copy(nullable = true)
+              lceStateTypeInfo.className.parameterizedBy(getter.contentType).copy(nullable = true)
             )
             .defaultValue("null")
             .build()
@@ -137,7 +143,7 @@ private fun createStateType(
       PropertySpec
         .builder(
           getter.name,
-          lceStateTypeInfo.parameterizedBy(getter).copy(nullable = true)
+          lceStateTypeInfo.className.parameterizedBy(getter.contentType).copy(nullable = true)
         )
         .initializer(getter.name)
         .build()
@@ -262,34 +268,31 @@ private fun FunSpec.Builder.addBindRequestWhenBranch(
   val args = request.parameters.map { it.simpleName.toString() }
     .joinToString(", ", transform = { "$requestParamName.$it" })
     .let { if (it.isEmpty()) stateParamName else "$it, $stateParamName" }
+  addStatement("@Suppress(\"UNCHECKED_CAST\")")
   if (!property.getter.hasUnitContent) {
     addStatement(
       """
     |$OPERATIONS_PROPERTY_NAME.${requestOperationFunName(request)}($args)
-    |    .map<%1T> { %2T(%3M(it)) }
-    |    .onErrorReturn { %2T(%4M(it)) }
-    |    .toObservable()
-    |    .startWith(%2T(%5M()))
+    |  .map<%1T> { %2T($LCE_FACTORY_PROPERTY_NAME.createLceContent(it) as %3T) }
+    |  .onErrorReturn { %2T($LCE_FACTORY_PROPERTY_NAME.createLceError(it) as %3T) }
+    |  .toObservable()
+    |  .startWith(%2T($LCE_FACTORY_PROPERTY_NAME.createLceLoading() as %3T))
     """.trimMargin(),
       actionClassName,
       actionClassName.nestedClass(actionElementTypeName(property.getter)),
-      lceStateTypeInfo.contentConstructor,
-      lceStateTypeInfo.errorConstructor,
-      lceStateTypeInfo.loadingConstructor
+      lceStateTypeInfo.className.parameterizedBy(property.getter.contentType)
     )
   } else {
     addStatement(
       """
     |$OPERATIONS_PROPERTY_NAME.${requestOperationFunName(request)}($args)
-    |    .andThen(Observable.fromCallable<%1T> { %2T(%3M(Unit)) })
-    |    .onErrorReturn { %2T(%4M(it)) }
-    |    .startWith(%2T(%5M()))
+    |  .andThen(Observable.fromCallable<%1T> { %2T($LCE_FACTORY_PROPERTY_NAME.createLceContent(Unit) as %3T) })
+    |  .onErrorReturn { %2T($LCE_FACTORY_PROPERTY_NAME.createLceError(it) as %3T) }
+    |  .startWith(%2T($LCE_FACTORY_PROPERTY_NAME.createLceLoading() as %3T))
     """.trimMargin(),
       actionClassName,
       actionClassName.nestedClass(actionElementTypeName(property.getter)),
-      lceStateTypeInfo.contentConstructor,
-      lceStateTypeInfo.errorConstructor,
-      lceStateTypeInfo.loadingConstructor
+      lceStateTypeInfo.className.parameterizedBy(property.getter.contentType)
     )
   }
   endControlFlow()
@@ -338,11 +341,6 @@ private fun createCreateInitialStateMethod(
     .build()
 }
 
-private fun LceStateTypeInfo.parameterizedBy(getter: ReactiveGetter): ParameterizedTypeName {
-  return this.type.asClassName()
-    .parameterizedBy(getter.contentType.asTypeName().javaToKotlinType(omitVarianceModifiers = true))
-}
-
 private fun requestElementTypeName(request: ReactiveRequest): String {
   return request.name.capitalize() + "Request"
 }
@@ -352,3 +350,4 @@ private fun actionElementTypeName(getter: ReactiveGetter): String {
 }
 
 private const val OPERATIONS_PROPERTY_NAME = "operations"
+private const val LCE_FACTORY_PROPERTY_NAME = "lceStateFactory"

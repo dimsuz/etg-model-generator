@@ -18,7 +18,7 @@ internal fun writeFile(
     fileSpec.name
   ).apply {
     parentFile.mkdirs()
-    writeText(fileSpec.toString())
+    writeText(fileSpec.toBuilder().indent(" ").build().toString())
   }
   return Right(Unit)
 }

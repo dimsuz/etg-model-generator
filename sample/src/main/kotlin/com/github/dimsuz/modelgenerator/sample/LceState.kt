@@ -1,8 +1,6 @@
 package com.github.dimsuz.modelgenerator.sample
 
-import com.github.dimsuz.modelgenerator.annotation.LceContentConstructor
-import com.github.dimsuz.modelgenerator.annotation.LceErrorConstructor
-import com.github.dimsuz.modelgenerator.annotation.LceLoadingConstructor
+import com.github.dimsuz.modelgenerator.lcestate.LceStateFactory
 
 data class LceState<C>(
   val isLoading: Boolean,
@@ -28,17 +26,17 @@ data class LceState<C>(
   }
 }
 
-@LceContentConstructor
-fun <C> createLceContent(content: C): LceState<C> {
-  return LceState(isLoading = false, content = content, error = null)
-}
+class LceStateFactoryImpl : LceStateFactory<LceState<*>> {
+  override fun createLceContent(content: Any): LceState<*> {
+    return LceState.Content(content)
+  }
 
-@LceLoadingConstructor
-fun <C> createLceLoading(content: C? = null): LceState<C> {
-  return LceState(isLoading = true, content = content, error = null)
-}
+  override fun createLceError(error: Any): LceState<*> {
+    return LceState.Error(error as Throwable, null)
+  }
 
-@LceErrorConstructor
-fun <C> createLceError(error: Throwable, content: C? = null): LceState<C> {
-  return LceState(isLoading = false, content = content, error = error)
+  override fun createLceLoading(): LceState<*> {
+    return LceState.Loading(null)
+  }
+
 }

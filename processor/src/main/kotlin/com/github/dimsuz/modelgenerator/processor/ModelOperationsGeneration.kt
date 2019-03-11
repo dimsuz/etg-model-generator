@@ -54,7 +54,7 @@ private fun createRequestMethod(property: ReactiveProperty, stateClassName: Clas
   val returnType = if (property.getter.hasUnitContent) {
     Completable::class.asClassName()
   } else {
-    Single::class.asClassName().parameterizedBy(property.getter.contentType.asTypeName().javaToKotlinType())
+    Single::class.asClassName().parameterizedBy(property.getter.contentType)
   }
   return FunSpec.builder(requestOperationName)
     .addParameters(property.request.parameters.map { ParameterSpec.getWrapper(it) })
