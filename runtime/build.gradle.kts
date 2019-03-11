@@ -8,6 +8,10 @@ val deps: Map<String, String> by rootProject.extra
 group = property("groupId")!!
 version = property("versionName")!!
 
+base {
+  archivesBaseName = "etg-model-generator-runtime"
+}
+
 dependencies {
   api(deps.getValue("rxJava"))
 }

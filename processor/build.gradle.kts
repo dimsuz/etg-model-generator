@@ -8,6 +8,9 @@ val deps: Map<String, String> by rootProject.extra
 group = property("groupId")!!
 version = property("versionName")!!
 
+base {
+  archivesBaseName = "etg-model-generator-processor"
+}
 
 dependencies {
   implementation(project(":runtime"))
