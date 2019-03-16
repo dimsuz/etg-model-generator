@@ -6,7 +6,7 @@ import io.reactivex.Single
 
 internal class SampleOperationsImpl(private val userIdProvider: () -> String) : SampleModelOperations {
   override fun createFetchMovieDetailsOperation(movieId: String, state: SampleModelImpl.State): Single<MovieDetails> {
-    return Single.just(MovieDetails("id", "Comedy"))
+    return Single.just(MovieDetails(movieId, "Comedy"))
   }
 
   override fun createMovieListOperation(
@@ -29,7 +29,7 @@ internal class SampleOperationsImpl(private val userIdProvider: () -> String) : 
   }
 
   override fun createFindChatMessagesOperation(state: SampleModelImpl.State): Single<Map<String, List<Set<String>>>> {
-    return Single.error(NotImplementedError())
+    return Single.error(NotImplementedError("chat messages not implemented"))
   }
 
   override fun testNonLceState(): Observable<String> {
