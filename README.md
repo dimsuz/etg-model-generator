@@ -3,7 +3,10 @@
 Given
 
 ```kotlin
-@GenerateReducingImplementation(baseClass = SerialReactiveModel::class)
+@GenerateReducingImplementation(
+  baseClass = SerialReactiveModel::class, 
+  lceState = LceState::class
+)
 interface SampleModel {
   fun fetchMovieList(userId: String)
   fun fetchMovieListState(): Observable<LceState<List<Movie>>>
@@ -29,7 +32,7 @@ interface SampleModelOperations {
 }
 ```
 
-Reactive properties are recognized based on the returned LCE state type. To tell the processor about this type you'll need to provide it with 3 annotated function-constructors, for example:
+Reactive properties are recognized based on the returned LCE state type. To tell the processor about this type you'll need to provide it with a factory which knows how to create instances of LCE state:
 
 ```kotlin
 data class LceState<C>(
@@ -38,19 +41,19 @@ data class LceState<C>(
   val error: Throwable?
 )
 
-@LceContentConstructor
-fun <C> createLceContent(content: C): LceState<C> {
-  return LceState(isLoading = false, content = content, error = null)
-}
+class LceStateFactoryImpl : LceStateFactory<LceState<*>> {
+  override fun createLceContent(content: Any): LceState<*> {
+    return LceState(isLoading = false, content = content, error = null)
+  }
 
-@LceLoadingConstructor
-fun <C> createLceLoading(content: C? = null): LceState<C> {
-  return LceState(isLoading = true, content = content, error = null)
-}
+  override fun createLceError(error: Any): LceState<*> {
+    return LceState(isLoading = false, content = null, error = error as Throwable)
+  }
 
-@LceErrorConstructor
-fun <C> createLceError(error: Throwable, content: C? = null): LceState<C> {
-  return LceState(isLoading = false, content = content, error = error)
+  override fun createLceLoading(): LceState<*> {
+    return LceState(isLoading = true, content = content, error = null)
+  }
+
 }
 ```
 
@@ -64,8 +67,9 @@ To create an instance of the model which uses the generated implementation call:
 val operationsImpl = object : SampleModelOperations {
    // Tyour implementation
 }
-val model = ModelGenerator.createModel(operationsImpl)
-model.fetchMovieListState().subscribe({ println("Got list $it")})
+val lceStateFactory = LceStateFactoryImpl()
+val model = ModelGenerator.createModel(operationsImpl, lceStateFactory)
+model.fetchMovieListState().subscribe({ println("Got list $it") })
 model.fetchMovieList("my-user-id")
 ```
 
@@ -76,8 +80,8 @@ Add a Gradle dependency:
 ```gradle
 apply plugin: 'kotlin-kapt'
 
-implementation 'com.github.dimsuz:etg-model-generator-runtime:1.0.0-RC1'
-kapt 'com.github.dimsuz:etg-model-generator-processor:1.0.0-RC1'
+implementation 'com.github.dimsuz:etg-model-generator-runtime:1.0.0-RC2'
+kapt 'com.github.dimsuz:etg-model-generator-processor:1.0.0-RC2'
 ```
 
 # License
