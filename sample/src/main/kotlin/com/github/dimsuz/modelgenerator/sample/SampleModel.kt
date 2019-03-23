@@ -47,7 +47,7 @@ fun testModel(model: SampleModel) {
   movieDetailsObserver.assertValues(
     LceState.Loading(),
     LceState.Content(MovieDetails("example-test-movie-id", "Comedy"))
-    )
+  )
 
   val friendListObserver: TestObserver<LceState<Unit>> = TestObserver()
   model.getFriendsListState().subscribe(friendListObserver)
@@ -71,15 +71,55 @@ fun testModel(model: SampleModel) {
   println("tests passed")
 }
 
-fun main() {
+// Tests that after emitting L+C events, corresponding field in State gets cleared back to null,
+// so that future subscribers won't see it laying around: only ones subscribed during L+C state changes will
+// be able to see it.
+//
+// This tests for the fix of "unwanted C/E state" situation which often manifested, for example:
+//
+// * model has 'lceProperty1' and 'lceProperty2'
+// * presenter A subscribes to 'lceProperty1', watches it to change from L to E state
+// * presenter B is launched, subscribes to 'lceProperty1'. It's in E state, stored in model's State,
+//   but no changes happened to it, since B subscribed, so B doesn't receive anything
+// * presenter C is launched, subscribes to 'lceProperty2'. It emits L, model's 'State' changes
+// * This causes presenter B to receive 'lceProperty1' E state! without receiving its L state.
+//   This situation often causes problems when presenter B is not ready for this behavior and expects E to come after L
+// * Note that presenter A won't get E in this case, because distinctUntilChanged() inside model will
+//   discard it for presenter A, since it subscribed earlier and observed L+E happening. Not so with presenter B
+//
+// solution for this: model must clean up lce state after receiving C or E. They will be observed by whoever
+// was subscribed, but not by new subscribers
+fun testClearsStateAfterEmittingContentOrError(model: SampleModel) {
+  val friendListObserver: TestObserver<LceState<Unit>> = TestObserver()
+  model.getFriendsListState().subscribe(friendListObserver)
+  model.getFriendsList()
+  // as per description above, this is presenter A, receiving L + C
+  friendListObserver.awaitCount(2, { println("await failed" ) }, 2000)
+
+  // this is presenter B, subscribing to changes of 'lceProperty1' (getFriendsListState)
+  val friendListObserver1: TestObserver<LceState<Unit>> = TestObserver()
+  model.getFriendsListState().subscribe(friendListObserver1)
+
+  // this is presenter C, triggering changes to 'lceProperty2' (fetchMovieDetailsState)
+  val movieDetailsObserver: TestObserver<LceState<MovieDetails>> = TestObserver()
+  model.fetchMovieDetailsState("user-id").subscribe(movieDetailsObserver)
+  model.fetchMovieDetails("example-test-movie-id")
+  movieDetailsObserver.awaitCount(2, { println("await failed" ) }, 2000)
+
+  // Check that presenter C doesn't receive C-state to prevent described operation from happening
+  friendListObserver1.assertNoValues()
+}
+
+private fun createModel(): SampleModel {
   val schedulers = object : AppSchedulers { }
-  val model = ModelGenerator.createModel(
+  return ModelGenerator.createModel(
     SampleOperationsImpl { "userId" },
     LceStateFactoryImpl(),
     schedulers,
     { println(it) })
+}
 
-  println("model is created: $model")
-
-  testModel(model)
+fun main() {
+  testModel(createModel())
+  testClearsStateAfterEmittingContentOrError(createModel())
 }

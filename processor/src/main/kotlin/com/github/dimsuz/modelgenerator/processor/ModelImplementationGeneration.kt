@@ -112,7 +112,8 @@ private fun createActionType(
         .superclass(actionClassName)
         .addModifiers(KModifier.DATA)
         .primaryConstructor(listOf(
-          PropertySpec.builder("state", lceStateTypeInfo.className.parameterizedBy(getter.contentType)).build()
+          PropertySpec.builder("state", lceStateTypeInfo.className.parameterizedBy(getter.contentType).copy(nullable = true))
+            .build()
         ))
         .build()
     })
@@ -275,7 +276,7 @@ private fun FunSpec.Builder.addBindRequestWhenBranch(
     |$OPERATIONS_PROPERTY_NAME.${requestOperationFunName(request)}($args)
     |  .map<%1T> { %2T($LCE_FACTORY_PROPERTY_NAME.createLceContent(it) as %3T) }
     |  .onErrorReturn { %2T($LCE_FACTORY_PROPERTY_NAME.createLceError(it) as %3T) }
-    |  .toObservable()
+    |  .flatMapObservable { Observable.just(it, %2T(null)) }
     |  .startWith(%2T($LCE_FACTORY_PROPERTY_NAME.createLceLoading() as %3T))
     """.trimMargin(),
       actionClassName,
@@ -288,6 +289,7 @@ private fun FunSpec.Builder.addBindRequestWhenBranch(
     |$OPERATIONS_PROPERTY_NAME.${requestOperationFunName(request)}($args)
     |  .andThen(Observable.fromCallable<%1T> { %2T($LCE_FACTORY_PROPERTY_NAME.createLceContent(Unit) as %3T) })
     |  .onErrorReturn { %2T($LCE_FACTORY_PROPERTY_NAME.createLceError(it) as %3T) }
+    |  .flatMap { Observable.just(it, %2T(null)) }
     |  .startWith(%2T($LCE_FACTORY_PROPERTY_NAME.createLceLoading() as %3T))
     """.trimMargin(),
       actionClassName,
