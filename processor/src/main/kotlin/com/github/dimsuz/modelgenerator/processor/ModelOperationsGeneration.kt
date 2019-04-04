@@ -20,6 +20,7 @@ import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.asTypeName
 import io.reactivex.Completable
+import io.reactivex.Observable
 import io.reactivex.Single
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.ExecutableElement
@@ -42,7 +43,9 @@ internal fun generateModelOperations(
         .addFunctions(modelDescription.reactiveProperties
           .map { createRequestMethod(it, modelDescription.stateClassName) }
         )
-        .addFunctions(modelDescription.nonReactiveMethods.map { createNonReactiveMethod(it) })
+        .addFunctions(modelDescription.nonReactiveMethods
+          .map { createNonReactiveMethod(it, modelDescription.stateClassName) }
+        )
         .build()
     )
     .build()
@@ -64,8 +67,9 @@ private fun createRequestMethod(property: ReactiveProperty, stateClassName: Clas
     .build()
 }
 
-private fun createNonReactiveMethod(executableElement: ExecutableElement): FunSpec {
+private fun createNonReactiveMethod(executableElement: ExecutableElement, stateClassName: ClassName): FunSpec {
   return FunSpec.builder(executableElement.simpleName.toString())
+    .addParameter("stateChanges", Observable::class.asClassName().parameterizedBy(stateClassName))
     .addParameters(executableElement.parameters.map { ParameterSpec.getWrapper(it) })
     .addModifiers(KModifier.ABSTRACT)
     .returns(executableElement.returnType.asTypeName().javaToKotlinType())

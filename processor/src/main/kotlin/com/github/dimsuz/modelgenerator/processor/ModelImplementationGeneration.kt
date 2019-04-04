@@ -176,13 +176,12 @@ private fun createRequestType(requestClassName: ClassName, requests: List<Reacti
 }
 
 private fun generateReactiveGetter(getter: ReactiveGetter): FunSpec {
-  val stateChangesPropertyName = ReactiveModel<*, *, *>::stateChanges.name
   return FunSpec.overridingWrapper(getter.element)
     .addCode(
       CodeBlock.builder()
         .addStatement(
           """
-          |return $stateChangesPropertyName
+          |return ${stateChangesPropertyName()}
           |    .filter { it.${getter.name} != null }
           |    .map { it.${getter.name}!! }
           |    .distinctUntilChanged()
@@ -211,13 +210,15 @@ private fun generateReactiveRequest(request: ReactiveRequest, requestClassName: 
 }
 
 private fun generateNonReactiveMethodImpl(element: ExecutableElement): FunSpec {
+  val parameters = listOf(stateChangesPropertyName()).plus(element.parameters.map { it.simpleName.toString() })
   return FunSpec.overridingWrapper(element)
     .addCode(
       CodeBlock.builder()
         .addStatement(
           "return $OPERATIONS_PROPERTY_NAME.%N(%N)",
           element.simpleName.toString(),
-          element.parameters.joinToString(", ") { it.simpleName.toString() })
+          parameters.joinToString(", ")
+        )
         .build()
     )
     .build()
@@ -349,6 +350,10 @@ private fun requestElementTypeName(request: ReactiveRequest): String {
 
 private fun actionElementTypeName(getter: ReactiveGetter): String {
   return "Update${getter.name.capitalize()}Action"
+}
+
+private fun stateChangesPropertyName(): String {
+  return ReactiveModel<*, *, *>::stateChanges.name
 }
 
 private const val OPERATIONS_PROPERTY_NAME = "operations"

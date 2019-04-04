@@ -32,19 +32,23 @@ internal class SampleOperationsImpl(private val userIdProvider: () -> String) : 
     return Single.error(NotImplementedError("chat messages not implemented"))
   }
 
-  override fun testNonLceState(): Observable<String> {
+  override fun testNonLceState(stateChanges: Observable<SampleModelImpl.State>): Observable<String> {
     return Observable.just("42")
   }
 
-  override fun testNonReactive(): String {
+  override fun testNonReactive(stateChanges: Observable<SampleModelImpl.State>): String {
     return "8"
   }
 
-  override fun testNonReactiveWithParams(userId: String, details: MovieDetails): String {
+  override fun testNonReactiveWithParams(
+    stateChanges: Observable<SampleModelImpl.State>,
+    userId: String,
+    details: MovieDetails
+  ): String {
     return "9"
   }
 
-  override fun testNonReactiveWithParamsVoid(details: MovieDetails) {
+  override fun testNonReactiveWithParamsVoid(stateChanges: Observable<SampleModelImpl.State>, details: MovieDetails) {
 
   }
 
