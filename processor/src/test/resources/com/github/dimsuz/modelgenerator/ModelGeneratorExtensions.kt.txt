@@ -1,0 +1,7 @@
+package com.github.dimsuz.modelgenerator
+
+import com.github.dimsuz.modelgenerator.lcestate.LceStateFactory
+
+internal fun ModelGenerator.createModel(operations: SampleModelOperations,
+  lceStateFactory: LceStateFactory<LceState<*>>): SampleModel = SampleModelImpl(operations,
+  lceStateFactory)

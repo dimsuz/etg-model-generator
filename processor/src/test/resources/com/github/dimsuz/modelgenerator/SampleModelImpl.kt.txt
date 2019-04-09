@@ -1,0 +1,58 @@
+package com.github.dimsuz.modelgenerator
+
+import com.github.dimsuz.modelgenerator.lcestate.LceStateFactory
+import io.reactivex.Observable
+import kotlin.String
+import kotlin.Unit
+
+internal class SampleModelImpl(private val operations: SampleModelOperations, private
+  val lceStateFactory: LceStateFactory<LceState<*>>) : BaseTestModel<SampleModelImpl.State,
+  SampleModelImpl.Request, SampleModelImpl.Action>(), SampleModel {
+ override fun test(param: String) {
+  scheduleRequest(Request.TestRequest(param))
+ }
+
+ override fun test(): Observable<LceState<String>> = stateChanges
+     .filter { it.test != null }
+     .map { it.test!! }
+     .distinctUntilChanged()
+
+ override fun testNonLceState(): Observable<String> = operations.testNonLceState(stateChanges)
+
+ override fun testNonReactive(): String = operations.testNonReactive(stateChanges)
+
+ override fun testNonReactiveWithParams(userId: String, details: String): String =
+   operations.testNonReactiveWithParams(stateChanges, userId, details)
+
+ override fun testNonReactiveWithParamsUnit(details: String): Unit =
+   operations.testNonReactiveWithParamsUnit(stateChanges, details)
+
+ override fun bindRequest(request: Request, state: State): Observable<Action> = when (request) {
+  is Request.TestRequest -> {
+   @Suppress("UNCHECKED_CAST")
+   operations.createTestOperation(request.param, state)
+       .map<Action> { Action.UpdateTestAction(lceStateFactory.createLceContent(it) as
+       LceState<String>) }
+       .onErrorReturn { Action.UpdateTestAction(lceStateFactory.createLceError(it) as
+       LceState<String>) }
+       .flatMapObservable { Observable.just(it, Action.UpdateTestAction(null)) }
+       .startWith(Action.UpdateTestAction(lceStateFactory.createLceLoading() as LceState<String>))
+  }
+ }
+
+ override fun reduceState(previousState: State, action: Action): State = when (action) {
+  is Action.UpdateTestAction -> previousState.copy(test = action.state)
+ }
+
+ override fun createInitialState(): State = State()
+
+ internal sealed class Request {
+  class TestRequest(val param: String) : Request()
+ }
+
+ internal data class State(val test: LceState<String>? = null)
+
+ internal sealed class Action {
+  data class UpdateTestAction(val state: LceState<String>?) : Action()
+ }
+}

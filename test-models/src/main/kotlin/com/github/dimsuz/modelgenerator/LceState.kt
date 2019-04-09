@@ -1,4 +1,4 @@
-package com.github.dimsuz.modelgenerator.sample
+package com.github.dimsuz.modelgenerator
 
 data class LceState<C>(
   val isLoading: Boolean,

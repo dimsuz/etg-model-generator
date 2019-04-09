@@ -1,0 +1,21 @@
+package com.github.dimsuz.modelgenerator
+
+import io.reactivex.Observable
+import io.reactivex.Single
+import kotlin.String
+
+internal interface SampleModelOperations : ModelOperations<SampleModel> {
+ fun createTestOperation(param: String, state: SampleModelImpl.State): Single<String>
+
+ fun testNonLceState(stateChanges: Observable<SampleModelImpl.State>): Observable<String>
+
+ fun testNonReactive(stateChanges: Observable<SampleModelImpl.State>): String
+
+ fun testNonReactiveWithParams(
+  stateChanges: Observable<SampleModelImpl.State>,
+  userId: String,
+  details: String
+ ): String
+
+ fun testNonReactiveWithParamsUnit(stateChanges: Observable<SampleModelImpl.State>, details: String)
+}

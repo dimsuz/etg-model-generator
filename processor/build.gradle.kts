@@ -16,6 +16,10 @@ dependencies {
   implementation(project(":runtime"))
   implementation(deps.getValue("kotlinpoet"))
   implementation(kotlin("reflect"))
+
+  testImplementation(project(":test-models"))
+  testImplementation(deps.getValue("compiletesting"))
+  testImplementation(deps.getValue("junit"))
 }
 
 tasks.register<Jar>("sourcesJar") {
