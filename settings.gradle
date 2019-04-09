@@ -2,4 +2,5 @@ rootProject.name = 'etg-model-generator'
 include 'runtime'
 include 'processor'
 include 'sample'
+include 'test-models'
 

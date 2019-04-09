@@ -8,12 +8,14 @@ buildscript {
   versions = mapOf(
     "kotlin" to "1.3.21", // see also plugin block below
     "rxJava" to "2.2.7",
-    "kotlinpoet" to "1.1.0"
+    "kotlinpoet" to "1.1.0",
+    "autoservice" to "1.0-rc4"
   )
   @Suppress("UNUSED_VALUE")
   deps = mapOf(
     "rxJava" to "io.reactivex.rxjava2:rxjava:${versions["rxJava"]}",
-    "kotlinpoet" to "com.squareup:kotlinpoet:${versions["kotlinpoet"]}"
+    "kotlinpoet" to "com.squareup:kotlinpoet:${versions["kotlinpoet"]}",
+    "autoservice" to "com.google.auto.service:auto-service:${versions["autoservice"]}"
   )
 }
 
