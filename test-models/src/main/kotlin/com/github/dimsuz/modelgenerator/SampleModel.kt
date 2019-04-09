@@ -1,4 +1,4 @@
-package com.github.dimsuz.modelgenerator.sample
+package com.github.dimsuz.modelgenerator
 
 import com.github.dimsuz.modelgenerator.annotation.GenerateReducingImplementation
 import io.reactivex.Observable
@@ -7,7 +7,7 @@ import io.reactivex.Observable
   baseClass = BaseTestModel::class,
   lceState = LceState::class
 )
-interface TestModel {
+interface SampleModel {
   fun test(): Observable<LceState<String>>
   fun test(param: String)
   fun testNonLceState(): Observable<String>

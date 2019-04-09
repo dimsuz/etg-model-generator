@@ -1,4 +1,4 @@
-package com.github.dimsuz.modelgenerator.sample
+package com.github.dimsuz.modelgenerator
 
 import com.github.dimsuz.modelgenerator.model.ReactiveModel
 import io.reactivex.Observable

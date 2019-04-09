@@ -9,13 +9,17 @@ buildscript {
     "kotlin" to "1.3.21", // see also plugin block below
     "rxJava" to "2.2.7",
     "kotlinpoet" to "1.1.0",
-    "autoservice" to "1.0-rc4"
+    "autoservice" to "1.0-rc4",
+    "junit" to "4.12",
+    "compiletesting" to "0.15"
   )
   @Suppress("UNUSED_VALUE")
   deps = mapOf(
     "rxJava" to "io.reactivex.rxjava2:rxjava:${versions["rxJava"]}",
     "kotlinpoet" to "com.squareup:kotlinpoet:${versions["kotlinpoet"]}",
-    "autoservice" to "com.google.auto.service:auto-service:${versions["autoservice"]}"
+    "autoservice" to "com.google.auto.service:auto-service:${versions["autoservice"]}",
+    "junit" to "junit:junit:${versions["junit"]}",
+    "compiletesting" to "com.google.testing.compile:compile-testing:${versions["compiletesting"]}"
   )
 }
 
