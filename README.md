@@ -80,8 +80,8 @@ Add a Gradle dependency:
 ```gradle
 apply plugin: 'kotlin-kapt'
 
-implementation 'com.github.dimsuz:etg-model-generator-runtime:1.0.0-RC4'
-kapt 'com.github.dimsuz:etg-model-generator-processor:1.0.0-RC4'
+implementation 'com.github.dimsuz:etg-model-generator-runtime:1.0.0-RC5'
+kapt 'com.github.dimsuz:etg-model-generator-processor:1.0.0-RC5'
 ```
 
 # License
