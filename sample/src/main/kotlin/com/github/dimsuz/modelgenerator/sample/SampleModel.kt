@@ -16,7 +16,7 @@ interface SampleModel {
   fun fetchMovieDetails(movieId: String)
   fun fetchMovieDetailsState(userId: String): Observable<LceState<MovieDetails>>
 
-  fun movieList(userId: String, filter: Filter) // several args
+  fun movieList(userId: String, filter: Filter?) // several args
   fun movieListState(): Observable<LceState<List<Movie>>> // generics in content state
 
   fun getFriendsList() // no args
@@ -29,10 +29,13 @@ interface SampleModel {
   fun findChatMessagesState(): Observable<LceState<Map<String, List<Set<String>>>>> // complex content type with map
 
   fun testNonLceState(): Observable<String>
+  fun testNonLceStateNullableParam(filter: Filter?, skipCache: Boolean?): Observable<String>
 
   fun testNonReactive(): String
   fun testNonReactiveWithParams(userId: String, details: MovieDetails): String
   fun testNonReactiveWithParamsVoid(details: MovieDetails)
+  fun testNonReactiveWithParamsNullable(skipCache: Boolean?)
+  fun testNonReactiveWithNullableReturn(userId: String, skipCache: Boolean?): Filter?
 }
 
 data class Filter(val query: String)

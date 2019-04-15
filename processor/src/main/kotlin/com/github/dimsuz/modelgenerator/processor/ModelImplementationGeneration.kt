@@ -11,7 +11,6 @@ import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
 import com.github.dimsuz.modelgenerator.processor.entity.map
 import com.github.dimsuz.modelgenerator.processor.util.constructors
 import com.github.dimsuz.modelgenerator.processor.util.getWrapper
-import com.github.dimsuz.modelgenerator.processor.util.javaToKotlinType
 import com.github.dimsuz.modelgenerator.processor.util.overridingWrapper
 import com.github.dimsuz.modelgenerator.processor.util.primaryConstructor
 import com.github.dimsuz.modelgenerator.processor.util.writeFile
@@ -26,7 +25,6 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.STAR
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
-import com.squareup.kotlinpoet.asTypeName
 import io.reactivex.Observable
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.ExecutableElement
@@ -164,10 +162,7 @@ private fun createRequestType(requestClassName: ClassName, requests: List<Reacti
         TypeSpec.classBuilder(requestElementTypeName(request))
           .superclass(requestClassName)
           .primaryConstructor(request.element.parameters.map {
-            PropertySpec.builder(
-              it.simpleName.toString(),
-              it.asType().asTypeName().javaToKotlinType(omitVarianceModifiers = true)
-            ).build()
+            PropertySpec.getWrapper(it)
           })
           .build()
       }

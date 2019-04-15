@@ -7,6 +7,7 @@ import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.WildcardTypeName
 import com.squareup.kotlinpoet.asTypeName
@@ -27,18 +28,21 @@ import kotlin.reflect.jvm.internal.impl.name.FqName
 // in parameters using wildcard types parameter variance is redundant:
 // kotlin has interface Map<K, out V>, but having parameter with concrete type: Map<Int, out List<Int>>
 // is redundant
-internal fun TypeName.javaToKotlinType(omitVarianceModifiers: Boolean = false): TypeName {
+internal fun TypeName.javaToKotlinType(isNullable: Boolean, omitVarianceModifiers: Boolean = false): TypeName {
   return if (this is ParameterizedTypeName) {
-    (rawType.javaToKotlinType() as ClassName).parameterizedBy(
-      *typeArguments.map { it.javaToKotlinType(omitVarianceModifiers) }.toTypedArray()
+    (rawType.javaToKotlinType(isNullable = false) as ClassName).parameterizedBy(
+      *typeArguments.map { it.javaToKotlinType(isNullable = false, omitVarianceModifiers = omitVarianceModifiers) }
+        .toTypedArray()
     )
   } else if (this is WildcardTypeName) {
     if (this.inTypes.isNotEmpty()) {
-      if (omitVarianceModifiers) this.inTypes.single().javaToKotlinType(omitVarianceModifiers)
-      else WildcardTypeName.consumerOf(this.inTypes.single().javaToKotlinType())
+      if (omitVarianceModifiers) this.inTypes.single()
+        .javaToKotlinType(isNullable = false, omitVarianceModifiers = omitVarianceModifiers)
+      else WildcardTypeName.consumerOf(this.inTypes.single().javaToKotlinType(isNullable = false))
     } else {
-      if (omitVarianceModifiers) this.outTypes.single().javaToKotlinType(omitVarianceModifiers)
-      else WildcardTypeName.producerOf(this.outTypes.single().javaToKotlinType())
+      if (omitVarianceModifiers) this.outTypes.single()
+        .javaToKotlinType(isNullable = false, omitVarianceModifiers = omitVarianceModifiers)
+      else WildcardTypeName.producerOf(this.outTypes.single().javaToKotlinType(isNullable = false))
     }
   } else {
     val className = JavaToKotlinClassMap.INSTANCE
@@ -46,6 +50,7 @@ internal fun TypeName.javaToKotlinType(omitVarianceModifiers: Boolean = false): 
     if (className == null) this
     else ClassName.bestGuess(className)
   }
+    .copy(nullable = isNullable)
 }
 
 internal fun ParameterSpec.Companion.getWrapper(element: VariableElement): ParameterSpec {
@@ -56,9 +61,17 @@ internal fun ParameterSpec.Companion.getWrapper(element: VariableElement): Param
         // in parameters using wildcard types parameter variance is redundant:
         // kotlin has interface Map<K, out V>, but having parameter with concrete type: Map<Int, out List<Int>>
         // is redundant
-        .javaToKotlinType(omitVarianceModifiers = true)
+        .javaToKotlinType(isNullable = element.isNullable, omitVarianceModifiers = true)
     )
     .jvmModifiers(element.modifiers).build()
+}
+
+internal fun PropertySpec.Companion.getWrapper(element: VariableElement): PropertySpec {
+  return PropertySpec.builder(
+    element.simpleName.toString(),
+    element.asType().asTypeName()
+      .javaToKotlinType(isNullable = element.isNullable, omitVarianceModifiers = true)
+  ).build()
 }
 
 fun FunSpec.Companion.overridingWrapper(method: ExecutableElement): FunSpec.Builder {
@@ -72,7 +85,7 @@ fun FunSpec.Companion.overridingWrapper(method: ExecutableElement): FunSpec.Buil
   }
 
   val methodName = method.simpleName.toString()
-  val funBuilder = FunSpec.builder(methodName)
+  val funBuilder = builder(methodName)
 
   funBuilder.addModifiers(KModifier.OVERRIDE)
 
@@ -85,7 +98,7 @@ fun FunSpec.Companion.overridingWrapper(method: ExecutableElement): FunSpec.Buil
     .map { it.asTypeVariableName() }
     .forEach { funBuilder.addTypeVariable(it) }
 
-  funBuilder.returns(method.returnType.asTypeName().javaToKotlinType())
+  funBuilder.returns(method.returnType.asTypeName().javaToKotlinType(isNullable = method.isNullable))
   funBuilder.addParameters(method.parameters.map { ParameterSpec.getWrapper(it) })
   if (method.isVarArgs) {
     funBuilder.parameters[funBuilder.parameters.lastIndex] = funBuilder.parameters.last()

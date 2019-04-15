@@ -61,7 +61,7 @@ private fun extractGetter(element: ExecutableElement): ReactiveGetter {
     element = element,
     // return type will be Observable<LceState<T>> reach into Observable then into LceState
     contentType = element.returnType.firstTypeArgument().firstTypeArgument()
-      .asTypeName().javaToKotlinType(omitVarianceModifiers = true)
+      .asTypeName().javaToKotlinType(isNullable = false, omitVarianceModifiers = true)
   )
 }
 

@@ -11,7 +11,7 @@ internal class SampleOperationsImpl(private val userIdProvider: () -> String) : 
 
   override fun createMovieListOperation(
     userId: String,
-    filter: Filter,
+    filter: Filter?,
     state: SampleModelImpl.State
   ): Single<List<Movie>> {
     return Single.just(emptyList())
@@ -36,6 +36,14 @@ internal class SampleOperationsImpl(private val userIdProvider: () -> String) : 
     return Observable.just("42")
   }
 
+  override fun testNonLceStateNullableParam(
+    stateChanges: Observable<SampleModelImpl.State>,
+    filter: Filter?,
+    skipCache: Boolean?
+  ): Observable<String> {
+    return Observable.just("42")
+  }
+
   override fun testNonReactive(stateChanges: Observable<SampleModelImpl.State>): String {
     return "8"
   }
@@ -50,6 +58,17 @@ internal class SampleOperationsImpl(private val userIdProvider: () -> String) : 
 
   override fun testNonReactiveWithParamsVoid(stateChanges: Observable<SampleModelImpl.State>, details: MovieDetails) {
 
+  }
+
+  override fun testNonReactiveWithParamsNullable(stateChanges: Observable<SampleModelImpl.State>, skipCache: Boolean?) {
+  }
+
+  override fun testNonReactiveWithNullableReturn(
+    stateChanges: Observable<SampleModelImpl.State>,
+    userId: String,
+    skipCache: Boolean?
+  ): Filter? {
+    return null
   }
 
 }

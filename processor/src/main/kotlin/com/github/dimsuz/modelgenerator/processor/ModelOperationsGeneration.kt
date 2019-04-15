@@ -8,6 +8,7 @@ import com.github.dimsuz.modelgenerator.processor.entity.ReactiveRequest
 import com.github.dimsuz.modelgenerator.processor.entity.map
 import com.github.dimsuz.modelgenerator.processor.util.enclosingPackageName
 import com.github.dimsuz.modelgenerator.processor.util.getWrapper
+import com.github.dimsuz.modelgenerator.processor.util.isNullable
 import com.github.dimsuz.modelgenerator.processor.util.javaToKotlinType
 import com.github.dimsuz.modelgenerator.processor.util.writeFile
 import com.squareup.kotlinpoet.ClassName
@@ -72,7 +73,7 @@ private fun createNonReactiveMethod(executableElement: ExecutableElement, stateC
     .addParameter("stateChanges", Observable::class.asClassName().parameterizedBy(stateClassName))
     .addParameters(executableElement.parameters.map { ParameterSpec.getWrapper(it) })
     .addModifiers(KModifier.ABSTRACT)
-    .returns(executableElement.returnType.asTypeName().javaToKotlinType())
+    .returns(executableElement.returnType.asTypeName().javaToKotlinType(executableElement.isNullable))
     .build()
 }
 
